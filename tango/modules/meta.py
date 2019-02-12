@@ -145,6 +145,11 @@ class Meta:
         """Show invite link of the bot."""
         await ctx.send(f"<{discord.utils.oauth_url(ctx.me.id)}>")
 
+    @tango.command()
+    async def source(self, ctx: tango.Context) -> None:
+        """Show GitHub link to source code."""
+        await ctx.send("https://github.com/MusicOnline/Tango")
+
 
 def setup(bot: tango.Tango) -> None:
     bot.add_cog(Meta(bot))
