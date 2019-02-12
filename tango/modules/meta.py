@@ -1,7 +1,6 @@
-from typing import Any, Dict, Iterator, List, Optional, Set, Tuple, Union
+from typing import List, Optional
 
 import discord  # type: ignore
-from discord.ext import commands  # type: ignore
 
 import tango
 
@@ -104,6 +103,7 @@ class Meta:
             "shiritori",
             "shiritori check",
             "invite",
+            "support",
         ]
 
         for cmd_name in cmd_names:
@@ -114,10 +114,6 @@ class Meta:
                     value=cmd.short_doc or "TBA.",
                     inline=False,
                 )
-        embed.add_field(
-            name="Bug Reports and Suggestions",
-            value="All bug reports and suggestions should be DM'd to Music#9755.",
-        )
         embed.set_footer(
             text="Prefixes: @Tango, tango, tg, t (followed with spaces) or たんご, タンゴ "
         )
