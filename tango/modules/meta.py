@@ -150,6 +150,11 @@ class Meta:
         """Show GitHub link to source code."""
         await ctx.send("https://github.com/MusicOnline/Tango")
 
+    @tango.command(aliases=["suggest", "feedback", "report", "contact"])
+    async def support(self, ctx: tango.Context) -> None:
+        """Show support server link."""
+        await ctx.send("Contact Music#9755 here: https://discord.gg/hdjSSDx")
+
 
 def setup(bot: tango.Tango) -> None:
     bot.add_cog(Meta(bot))
