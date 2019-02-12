@@ -26,9 +26,12 @@ Currently, the main commands include:
 
 Tango is a play on the differences between pronouncing English and Japanese (romaji). In English, it would be tango as in *tango orange*, the color! In Japanese, たんご or タンゴ is pronounced something like *tahn-goh*. It also happens to be the reading of 単語, which means 'word' or 'vocabulary'!
 
-
 ### Development
 
 Tango was created as I was learning Japanese. Sure, I did learn new Japanese stuff while building Tango. However, scraping big data like JMdict and KANJIDIC2 was a great learning experience too. Feel free to make a PR or issue to improve the bot.
 
 I don't have any specific objectives with Tango ever since I learned of similar bots. However, I do intend to add simple Japanese localization to make more of a learning environment. That might not happen anytime soon though.
+
+### License
+
+MIT for the code written by me.
