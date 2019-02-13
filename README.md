@@ -32,7 +32,7 @@ Tango was created as I was learning Japanese. Sure, I did learn new Japanese stu
 
 I don't have any specific objectives with Tango ever since I learned of similar bots. However, I do intend to add simple Japanese localization to make more of a learning environment. That might not happen anytime soon though.
 
-For further discussion, feel free to join the [support server](https://discord.gg/hdjSSDx).
+For further discussion, feel free to join the [support server](https://discord.gg/wp7Wxzs).
 
 ### License
 

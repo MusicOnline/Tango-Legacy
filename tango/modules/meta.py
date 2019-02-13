@@ -149,7 +149,7 @@ class Meta:
     @tango.command(aliases=["suggest", "feedback", "report", "contact"])
     async def support(self, ctx: tango.Context) -> None:
         """Show support server link."""
-        await ctx.send("Contact Music#9755 here: https://discord.gg/hdjSSDx")
+        await ctx.send("Contact Music#9755 here: https://discord.gg/wp7Wxzs")
 
 
 def setup(bot: tango.Tango) -> None:
