@@ -104,6 +104,7 @@ class Meta:
             "shiritori check",
             "invite",
             "support",
+            "vote",
         ]
 
         for cmd_name in cmd_names:
@@ -150,6 +151,11 @@ class Meta:
     async def support(self, ctx: tango.Context) -> None:
         """Show support server link."""
         await ctx.send("Contact Music#9755 here: https://discord.gg/wp7Wxzs")
+
+    @tango.command()
+    async def vote(self, ctx: tango.Context) -> None:
+        """Support the bot by voting!"""
+        await ctx.send("https://discordbots.org/bot/542015505146445834")
 
 
 def setup(bot: tango.Tango) -> None:
