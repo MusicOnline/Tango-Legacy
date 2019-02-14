@@ -1,7 +1,7 @@
 import functools
 
 from discord.ext import commands  # type: ignore
-from discord.ext.commands.core import hooked_wrapped_callback
+from discord.ext.commands.core import hooked_wrapped_callback  # type: ignore
 
 
 class Command(commands.Command):
@@ -15,10 +15,9 @@ class Command(commands.Command):
     async def get_help_embed(self):
         if self._help_embed_coro is None:
             return
-        elif self.instance is None:
+        if self.instance is None:
             return await self._help_embed_coro()
-        else:
-            return await self._help_embed_coro(self.instance)
+        return await self._help_embed_coro(self.instance)
 
     @property
     def signature_without_aliases(self) -> str:
@@ -55,7 +54,7 @@ class Command(commands.Command):
         return " ".join(result)
 
 
-class GroupMixin(commands.GroupMixin, Command):
+class GroupMixin:
     def command(self, *args, **kwargs):
         """A shortcut decorator that invokes :func:`.command` and adds it to
         the internal command list via :meth:`~.GroupMixin.add_command`.
@@ -81,7 +80,7 @@ class GroupMixin(commands.GroupMixin, Command):
         return decorator
 
 
-class Group(GroupMixin, Command):
+class Group(GroupMixin, Command, commands.Group):
     def __init__(self, **attrs):
         self.invoke_without_command = attrs.pop("invoke_without_command", False)
         super().__init__(**attrs)
@@ -133,7 +132,9 @@ class Group(GroupMixin, Command):
 
         if early_invoke:
             try:
-                await self.callback(*ctx.args, **ctx.kwargs)
+                await self.callback(  # pylint: disable=not-callable
+                    *ctx.args, **ctx.kwargs
+                )
             except:
                 ctx.command_failed = True
                 raise
