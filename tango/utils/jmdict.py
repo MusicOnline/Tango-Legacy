@@ -1,4 +1,4 @@
-from typing import BinaryIO, Dict, Generator, List, Optional, Tuple, Union
+from typing import BinaryIO, Dict, Generator, List, Tuple, Union
 
 from lxml import etree  # type: ignore
 
@@ -21,8 +21,12 @@ def _get_child(node: etree._Element, tag: str) -> etree._Element:
     return next(node.iter(tag))
 
 
-def _get_optional_child(node: etree._Element, tag: str) -> Optional[etree._Element]:
-    return next(node.iter(tag), None)
+def _has_child(node: etree._Element, tag: str) -> bool:
+    try:
+        _get_child(node, tag)
+    except StopIteration:
+        return False
+    return True
 
 
 def _parse_node(entry_node: etree._Element) -> Tuple[Entry, dict]:
@@ -62,10 +66,10 @@ def _parse_node(entry_node: etree._Element) -> Tuple[Entry, dict]:
             info=[re_inf.text for re_inf in r_ele.iter("re_inf")],
         )
 
-        if _get_optional_child(r_ele, "re_nokanji") is not None:
+        if _has_child(r_ele, "re_nokanji"):
             # This reading does not match any of the writing elemnts.
             reading_writings_mapping[reading_elem] = []
-        elif _get_optional_child(r_ele, "re_restr") is not None:
+        elif _has_child(r_ele, "re_restr"):
             # This reading is restricted to some writing elements only.
             reading_writings_mapping[reading_elem] = [
                 re_restr.text for re_restr in r_ele.iter("re_restr")
@@ -151,12 +155,12 @@ def _parse_node(entry_node: etree._Element) -> Tuple[Entry, dict]:
                 )
             )
 
-        if _get_optional_child(sense_node, "stagk"):
+        if _has_child(sense_node, "stagk"):
             related_writings = [k.text for k in sense_node.iter("stagk")]
         else:
             related_writings = [w.literal for w in writing_elements]
 
-        if _get_optional_child(sense_node, "stagr"):
+        if _has_child(sense_node, "stagr"):
             related_readings = [r.text for r in sense_node.iter("stagr")]
         else:
             related_readings = [r.literal for r in reading_elements]
