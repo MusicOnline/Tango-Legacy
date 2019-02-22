@@ -1,4 +1,4 @@
-from typing import BinaryIO, List, Optional, Tuple, Union
+from typing import BinaryIO, Generator, List, Optional, Tuple, Union
 from xml.dom import minidom  # type: ignore
 
 from tango.core.models.kanjidic2 import Kanji, KanjiMeaningsReadings
@@ -62,7 +62,7 @@ def _make_kanji(element: minidom.Element) -> Tuple[Kanji, List[KanjiMeaningsRead
 
 def parse(
     path: Union[BinaryIO, str]
-) -> List[Tuple[Kanji, List[KanjiMeaningsReadings]]]:
+) -> Generator[Tuple[Kanji, List[KanjiMeaningsReadings]], None, None]:
     dom: minidom.Document = minidom.parse(path)
-    elements: List[minidom.Element] = dom.getElementsByTagName("character")
-    return [_make_kanji(e) for e in elements]
+    for elem in dom.getElementsByTagName("character"):
+        yield _make_kanji(elem)

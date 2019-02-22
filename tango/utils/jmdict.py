@@ -1,4 +1,4 @@
-from typing import BinaryIO, Dict, List, Optional, Tuple, Union
+from typing import BinaryIO, Dict, Generator, List, Optional, Tuple, Union
 
 from lxml import etree  # type: ignore
 
@@ -194,6 +194,7 @@ def _parse_node(entry_node: etree._Element) -> Tuple[Entry, dict]:
     )
 
 
-def parse(filepath: Union[BinaryIO, str]) -> List[Tuple[Entry, dict]]:
+def parse(filepath: Union[BinaryIO, str]) -> Generator[Tuple[Entry, dict], None, None]:
     tree = etree.parse(filepath)
-    return [_parse_node(node) for node in tree.getroot().iter("entry")]
+    for node in tree.getroot().iter("entry"):
+        yield _parse_node(node)
