@@ -39,8 +39,4 @@ bot.load_extension("tango.modules.jisho")
 bot.load_extension("tango.modules.kanji")
 bot.load_extension("tango.modules.shiritori")
 
-try:
-    bot.run(config.BOT_TOKEN)
-except KeyboardInterrupt:
-    logger.info("Received KeyboardInterrupt signal to shutdown.")
-    bot.loop.run_until_complete(bot.shutdown())
+bot.run(config.BOT_TOKEN)
