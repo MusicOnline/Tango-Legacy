@@ -5,4 +5,5 @@ kanaconv
 lxml
 pillow
 psutil
+pyyaml
 svg.path

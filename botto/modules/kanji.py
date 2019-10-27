@@ -8,7 +8,7 @@ from botto.core.models.kanjidic2 import Kanji, KanjiMeaningsReadings
 from botto.utils import kanjivg_gif
 
 
-class KanjiSearch:
+class KanjiSearch(commands.Cog):
     def __init__(self, bot: botto.Botto) -> None:
         self.bot: botto.Botto = bot
 

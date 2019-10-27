@@ -50,7 +50,7 @@ class Link:  # pylint: disable=too-few-public-methods
         self.url = data.get("url", None)
 
 
-class Jisho:
+class Jisho(commands.Cog):
     def __init__(self, bot: botto.Botto) -> None:
         self.bot: botto.Botto = bot
 

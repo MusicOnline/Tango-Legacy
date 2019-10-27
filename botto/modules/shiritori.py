@@ -55,7 +55,7 @@ to_hiragana = lambda kana: HIRAGANA_SYLLABLES[KATAKANA_SYLLABLES.index(kana)]
 to_katakana = lambda kana: KATAKANA_SYLLABLES[HIRAGANA_SYLLABLES.index(kana)]
 
 
-class Shiritori:
+class Shiritori(commands.Cog):
     def __init__(self, bot: botto.Botto) -> None:
         self.bot: botto.Botto = bot
         self.sessions: Dict[discord.User, asyncio.Task] = {}
