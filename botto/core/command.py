@@ -17,8 +17,6 @@ class Command(commands.Command):
         return coro
 
     async def get_help_embed(self, helpcommand) -> discord.Embed:
-        if self.cog:
-            return await self._help_embed_func(self.cog, helpcommand)
         return await self._help_embed_func(helpcommand)
 
     @property

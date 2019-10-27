@@ -114,11 +114,9 @@ class KanjiSearch(commands.Cog):
         await ctx.send(embed=embed, **other_kwargs)
 
     @kanji_search.help_embed
-    async def kanji_help_embed(self) -> discord.Embed:
+    async def kanji_help_embed(self, help_command) -> discord.Embed:
         embed: discord.Embed = discord.Embed(colour=botto.config.MAIN_COLOUR)
-        embed.set_author(
-            name=self.kanji_search.signature_without_aliases  # pylint: disable=no-member
-        )
+        embed.set_author(name=self.kanji_search.name + " " + self.kanji_search.signature)
         embed.description = (
             f"{self.kanji_search.short_doc}\n\n"  # pylint: disable=no-member
             f"Kanji are the adopted logographic Chinese characters that are used in "
@@ -167,11 +165,9 @@ class KanjiSearch(commands.Cog):
         await ctx.send(file=stroke_diagram)
 
     @strokeorder.help_embed
-    async def strokeorder_help_embed(self) -> discord.Embed:
+    async def strokeorder_help_embed(self, help_command) -> discord.Embed:
         embed: discord.Embed = discord.Embed(colour=botto.config.MAIN_COLOUR)
-        embed.set_author(
-            name=self.strokeorder.signature_without_aliases  # pylint: disable=no-member
-        )
+        embed.set_author(name=self.strokeorder.name + " " + self.strokeorder.signature)
         embed.description = (
             f"{self.strokeorder.short_doc}\n\n"  # pylint: disable=no-member
             f"Animated stroke diagrams are generated using data from "
@@ -186,4 +182,8 @@ class KanjiSearch(commands.Cog):
 
 
 def setup(bot: botto.Botto) -> None:
-    bot.add_cog(KanjiSearch(bot))
+    # Temporary solution to issue where commands in cog instances lose their help embed
+    cog = KanjiSearch(bot)
+    cog.kanji_search.help_embed(cog.kanji_help_embed)
+    cog.strokeorder.help_embed(cog.strokeorder_help_embed)
+    bot.add_cog(cog)

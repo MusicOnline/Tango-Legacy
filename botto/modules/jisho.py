@@ -113,11 +113,9 @@ class Jisho(commands.Cog):
         await paginator.paginate()
 
     @jisho.help_embed
-    async def jisho_help_embed(self) -> discord.Embed:
-        embed: discord.Embed = discord.Embed(colour=botto.config.botto_COLOUR)
-        embed.set_author(
-            name=self.jisho.signature_without_aliases  # pylint: disable=no-member
-        )
+    async def jisho_help_embed(self, help_command) -> discord.Embed:
+        embed: discord.Embed = discord.Embed(colour=botto.config.MAIN_COLOUR)
+        embed.set_author(name=self.jisho.name + " " + self.jisho.signature)
         embed.description = (
             f"{self.jisho.short_doc}\n\n"  # pylint: disable=no-member
             f"botto queries entries from [Jisho](https://jisho.org/) and displays them "
@@ -141,4 +139,7 @@ class Jisho(commands.Cog):
 
 
 def setup(bot: botto.Botto) -> None:
-    bot.add_cog(Jisho(bot))
+    # Temporary solution to issue where commands in cog instances lose their help embed
+    cog = Jisho(bot)
+    cog.jisho.help_embed(cog.jisho_help_embed)
+    bot.add_cog(cog)
