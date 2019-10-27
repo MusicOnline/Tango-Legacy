@@ -5,7 +5,7 @@ from typing import Dict, List, Optional
 import asyncpg  # type: ignore
 import discord  # type: ignore
 
-import tango
+import botto
 
 # pylint: disable=bad-whitespace
 # fmt: off
@@ -56,8 +56,8 @@ to_katakana = lambda kana: KATAKANA_SYLLABLES[HIRAGANA_SYLLABLES.index(kana)]
 
 
 class Shiritori:
-    def __init__(self, bot: tango.Tango) -> None:
-        self.bot: tango.Tango = bot
+    def __init__(self, bot: botto.Botto) -> None:
+        self.bot: botto.Botto = bot
         self.sessions: Dict[discord.User, asyncio.Task] = {}
 
     def __unload(self) -> None:
@@ -122,8 +122,8 @@ class Shiritori:
             )
         )
 
-    @tango.group(aliases=["しりとり", "尻取り"], invoke_without_command=True)
-    async def shiritori(self, ctx: tango.Context, time_limit: int = 20) -> None:
+    @botto.group(aliases=["しりとり", "尻取り"], invoke_without_command=True)
+    async def shiritori(self, ctx: botto.Context, time_limit: int = 20) -> None:
         """Play Shiritori with Tango!"""
         if ctx.author in self.sessions:
             self.sessions.pop(ctx.author).cancel()
@@ -134,7 +134,7 @@ class Shiritori:
             await ctx.send("I can be benevolent, but isn't over 60 seconds too much?")
             return
 
-        embed: discord.Embed = discord.Embed(colour=tango.config.TANGO_COLOUR)
+        embed: discord.Embed = discord.Embed(colour=botto.config.MAIN_COLOUR)
         embed.set_author(name="A game of Shiritori is starting!")
         embed.set_thumbnail(url=ctx.author.avatar_url)
         embed.description = (
@@ -152,7 +152,7 @@ class Shiritori:
         await ctx.send(embed=embed)
         await asyncio.sleep(5)
 
-        await ctx.send(f"{tango.BLOBFISTBUMP} {ctx.author.mention} Starting off, しりとり!")
+        await ctx.send(f"{botto.BLOBFISTBUMP} {ctx.author.mention} Starting off, しりとり!")
 
         self.sessions[ctx.author] = self.bot.loop.create_task(
             self.continue_shiritori(ctx, time_limit)
@@ -160,7 +160,7 @@ class Shiritori:
 
     @shiritori.help_embed
     async def shiritori_help_embed(self) -> discord.Embed:
-        embed: discord.Embed = discord.Embed(colour=tango.config.TANGO_COLOUR)
+        embed: discord.Embed = discord.Embed(colour=botto.config.MAIN_COLOUR)
         embed.set_author(
             name=self.shiritori.signature_without_aliases  # pylint: disable=no-member
         )
@@ -195,7 +195,7 @@ class Shiritori:
         embed.set_image(url="http://www.619.io/assets/img/shiritori/shiritori.png")
         return embed
 
-    async def continue_shiritori(self, ctx: tango.Context, timeout: int) -> None:
+    async def continue_shiritori(self, ctx: botto.Context, timeout: int) -> None:
         used_words: List[str] = ["しりとり"]
 
         def check(message: discord.Message) -> bool:
@@ -215,31 +215,31 @@ class Shiritori:
                 score = len(used_words) // 2
                 if score == 0:
                     await ctx.send(
-                        f"{tango.aBLOBSHAKE} {ctx.author} You took too long to answer. "
+                        f"{botto.aBLOBSHAKE} {ctx.author} You took too long to answer. "
                         f"Try increasing the time limit!"
                     )
                 elif score >= 10:
                     await ctx.send(
-                        f"{tango.aBLOBCHEER} {ctx.author} Tick tock, time's up! "
+                        f"{botto.aBLOBCHEER} {ctx.author} Tick tock, time's up! "
                         f"You scored {score} point(s) this time."
                     )
                 else:
                     await ctx.send(
-                        f"{tango.aBLOBSHAKE} {ctx.author} Tick tock, time's up! "
+                        f"{botto.aBLOBSHAKE} {ctx.author} Tick tock, time's up! "
                         f"You scored {score} point(s) this time."
                     )
                 return
             used_words = await self.process_turn(ctx, msg.content, used_words)
 
     async def process_turn(
-        self, ctx: tango.Context, word: str, used_words: List[str]
+        self, ctx: botto.Context, word: str, used_words: List[str]
     ) -> List[str]:
         score: int = len(used_words) // 2
         emoji: discord.PartialEmoji
         if score >= 10:
-            emoji = tango.aBLOBCHEER
+            emoji = botto.aBLOBCHEER
         else:
-            emoji = tango.BLOBSADPATS
+            emoji = botto.BLOBSADPATS
 
         word = word.replace(" ", "").replace("\N{IDEOGRAPHIC SPACE}", "")
         if word in used_words:
@@ -337,18 +337,18 @@ class Shiritori:
 
         if answer is None:
             await ctx.send(
-                f"{tango.aBLOBSHAKE} {ctx.author} I'm lost for words..."
+                f"{botto.aBLOBSHAKE} {ctx.author} I'm lost for words..."
                 f" Score: {score}\n\nYou exhausted my vocabulary! "
                 f"*(If you actually see this, I'm probably broken.)*"
             )
             raise asyncio.CancelledError
 
-        await ctx.send(f"{tango.BLOBFISTBUMP} {answer}")
+        await ctx.send(f"{botto.BLOBFISTBUMP} {answer}")
         used_words.append(answer)
         return used_words
 
     @shiritori.command(name="check", aliases=["かくにん", "確認"])
-    async def shiritori_check(self, ctx: tango.Context, word: str) -> None:
+    async def shiritori_check(self, ctx: botto.Context, word: str) -> None:
         """Check if your word is Shiritori-compliant."""
         word = word.replace(" ", "").replace("\N{IDEOGRAPHIC SPACE}", "")
         number_of_syllables: int = 0
@@ -377,20 +377,20 @@ class Shiritori:
                 number_of_syllables += 1
             elif char not in NON_SYLLABLES:
                 await ctx.send(
-                    f"{tango.BLOBSADPATS} Your word must be in hiragana or katakana. "
+                    f"{botto.BLOBSADPATS} Your word must be in hiragana or katakana. "
                     f"What's {char}?"
                 )
                 return
 
         if last_syllable is None:
-            await ctx.send(f"{tango.BLOBSADPATS} Sokuon, sokuon, dash dash dash?")
+            await ctx.send(f"{botto.BLOBSADPATS} Sokuon, sokuon, dash dash dash?")
             return
         elif last_syllable == "ん" or last_syllable == "ン":
-            await ctx.send(f"{tango.BLOBSADPATS} {word} ends with ん or ン!")
+            await ctx.send(f"{botto.BLOBSADPATS} {word} ends with ん or ン!")
             return
         elif number_of_syllables < 2:
             await ctx.send(
-                f"{tango.BLOBSADPATS} Your word needs at least two syllables/kana."
+                f"{botto.BLOBSADPATS} Your word needs at least two syllables/kana."
             )
             return
 
@@ -399,19 +399,19 @@ class Shiritori:
 
         if not is_noun:
             await ctx.send(
-                f"{tango.BLOBSADPATS} Seems like {word} is not a common noun used in "
+                f"{botto.BLOBSADPATS} Seems like {word} is not a common noun used in "
                 f"the Japanese language."
             )
             return
 
         await ctx.send(
-            f"{tango.aBLOBCHEER} Looks good! The last syllable was {last_syllable} "
+            f"{botto.aBLOBCHEER} Looks good! The last syllable was {last_syllable} "
             f"or {other_syllable}."
         )
 
     @shiritori_check.help_embed
     async def shiritori_check_help_embed(self) -> discord.Embed:
-        embed: discord.Embed = discord.Embed(colour=tango.config.TANGO_COLOUR)
+        embed: discord.Embed = discord.Embed(colour=botto.config.MAIN_COLOUR)
         embed.set_author(
             name=self.shiritori_check.signature_without_aliases  # pylint: disable=no-member
         )
@@ -438,5 +438,5 @@ class Shiritori:
         return embed
 
 
-def setup(bot: tango.Tango) -> None:
+def setup(bot: botto.Botto) -> None:
     bot.add_cog(Shiritori(bot))

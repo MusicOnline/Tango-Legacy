@@ -3,14 +3,14 @@ import unicodedata
 
 import discord  # type: ignore
 
-import tango
-from tango.core.models.kanjidic2 import Kanji, KanjiMeaningsReadings
-from tango.utils import kanjivg_gif
+import botto
+from botto.core.models.kanjidic2 import Kanji, KanjiMeaningsReadings
+from botto.utils import kanjivg_gif
 
 
 class KanjiSearch:
-    def __init__(self, bot: tango.Tango) -> None:
-        self.bot: tango.Tango = bot
+    def __init__(self, bot: botto.Botto) -> None:
+        self.bot: botto.Botto = bot
 
     async def get_stroke_diagram(self, character: str) -> discord.File:
         codepoint = f"{ord(character):05x}"
@@ -35,8 +35,8 @@ class KanjiSearch:
             output, f"{unicodedata.name(character)}.gif".replace(" ", "_")
         )
 
-    @tango.command(name="kanji", aliases=["k", "かんじ", "漢字"])
-    async def kanji_search(self, ctx: tango.Context, kanji: str) -> None:
+    @botto.command(name="kanji", aliases=["k", "かんじ", "漢字"])
+    async def kanji_search(self, ctx: botto.Context, kanji: str) -> None:
         """Look up a kanji character."""
         if len(kanji) > 1:
             await ctx.send("Try doing one character at a time.")
@@ -61,7 +61,7 @@ class KanjiSearch:
             KanjiMeaningsReadings.character == kanji
         ).gino.all()
 
-        embed: discord.Embed = discord.Embed(colour=tango.config.TANGO_COLOUR)
+        embed: discord.Embed = discord.Embed(colour=botto.config.MAIN_COLOUR)
 
         embed.set_author(name=f"Kanji Lookup - {_kanji}")
 
@@ -114,7 +114,7 @@ class KanjiSearch:
 
     @kanji_search.help_embed
     async def kanji_help_embed(self) -> discord.Embed:
-        embed: discord.Embed = discord.Embed(colour=tango.config.TANGO_COLOUR)
+        embed: discord.Embed = discord.Embed(colour=botto.config.MAIN_COLOUR)
         embed.set_author(
             name=self.kanji_search.signature_without_aliases  # pylint: disable=no-member
         )
@@ -142,8 +142,8 @@ class KanjiSearch:
         )
         return embed
 
-    @tango.command(aliases=["so", "ひつじゅん", "筆順", "かきじゅん", "書き順"])
-    async def strokeorder(self, ctx: tango.Context, kanji: str) -> None:
+    @botto.command(aliases=["so", "ひつじゅん", "筆順", "かきじゅん", "書き順"])
+    async def strokeorder(self, ctx: botto.Context, kanji: str) -> None:
         """View an animated stroke diagram of a kanji."""
         if len(kanji) > 1:
             await ctx.send("Try doing one character at a time.")
@@ -167,7 +167,7 @@ class KanjiSearch:
 
     @strokeorder.help_embed
     async def strokeorder_help_embed(self) -> discord.Embed:
-        embed: discord.Embed = discord.Embed(colour=tango.config.TANGO_COLOUR)
+        embed: discord.Embed = discord.Embed(colour=botto.config.MAIN_COLOUR)
         embed.set_author(
             name=self.strokeorder.signature_without_aliases  # pylint: disable=no-member
         )
@@ -184,5 +184,5 @@ class KanjiSearch:
         return embed
 
 
-def setup(bot: tango.Tango) -> None:
+def setup(bot: botto.Botto) -> None:
     bot.add_cog(KanjiSearch(bot))

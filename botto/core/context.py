@@ -1,10 +1,11 @@
 import functools
-import os
 from typing import Any, Callable, Coroutine, Dict, Optional, Tuple, Union
 
 import aiohttp  # type: ignore
 
 from discord.ext import commands  # type: ignore
+
+import botto
 
 try:
     import ujson as json
@@ -23,7 +24,7 @@ class Context(commands.Context):
     # ------ General and simple methods ------
 
     async def run_in_exec(self, func: Callable, *args: Any, **kwargs: Any) -> Any:
-        partial = functools.partial(func, *args, **kwargs)
+        partial: functools.partial[Any] = functools.partial(func, *args, **kwargs)
         return await self.bot.loop.run_in_executor(None, partial)
 
     # ------ Context locking ------
@@ -44,7 +45,7 @@ class Context(commands.Context):
 
     async def mystbin(self, content: str) -> str:
         """Create a mystbin and return the url."""
-        url = "https://mystb.in/documents"
+        url: str = "https://mystb.in/documents"
         async with self.session.post(url, data=content.encode("utf-8")) as resp:
             response = await resp.json()
             return f"https://mystb.in/{response['key']}"
@@ -56,11 +57,15 @@ class Context(commands.Context):
         public: bool = False,
     ) -> str:
         """Create a GitHub gist and return the url."""
-        url = "https://api.github.com/gists"
-        headers = {"Authorization": f"token {os.environ['GITHUB_TOKEN']}"}
+        if not botto.config.GITHUB_TOKEN:
+            raise ValueError("GITHUB_TOKEN not set in config file.")
+        url: str = "https://api.github.com/gists"
+        headers: Dict[str, str]
+        headers = {"Authorization": f"token {botto.config.GITHUB_TOKEN}"}
+        _files: Dict[str, Dict[str, str]]
         _files = {file[0]: {"content": file[1]} for file in files}
 
-        data = {"files": _files, "public": public}
+        data: dict = {"files": _files, "public": public}
         if description is not None:
             data.update(description=description)
 
@@ -70,21 +75,21 @@ class Context(commands.Context):
 
     # ------ GET request wrappers ------
 
-    async def get_as_bytes(self, url: str, **kwargs: Any) -> bytes:
+    async def get_as_bytes(self, url: Any, **kwargs: Any) -> bytes:
         """Send a GET request and return the response as bytes."""
-        async with self.session.get(url, **kwargs) as resp:
+        async with self.session.get(str(url), **kwargs) as resp:
             return await resp.read()
 
     async def get_as_text(
-        self, url: str, encoding: Optional[str] = None, **kwargs: Any
+        self, url: Any, encoding: Optional[str] = None, **kwargs: Any
     ) -> str:
         """Send a GET request and return the response as text."""
-        async with self.session.get(url, **kwargs) as resp:
+        async with self.session.get(str(url), **kwargs) as resp:
             return await resp.text(encoding=encoding)
 
     async def get_as_json(
         self,
-        url: str,
+        url: Any,
         *,
         encoding: Optional[str] = None,
         loads: Callable[[str], Any] = json.loads,
@@ -92,7 +97,7 @@ class Context(commands.Context):
         **kwargs: Any,
     ) -> Any:
         """Send a GET request and return the response as json."""
-        async with self.session.get(url, **kwargs) as resp:
+        async with self.session.get(str(url), **kwargs) as resp:
             return await resp.json(
                 encoding=encoding, loads=loads, content_type=content_type
             )
@@ -113,7 +118,7 @@ def lock_context() -> Callable[[CommandOrCoro], CommandOrCoro]:
             old_callback = command_or_coro
 
         @functools.wraps(old_callback)
-        async def wrapped_callback(*args: Any, **kwargs: Any):
+        async def wrapped_callback(*args: Any, **kwargs: Any) -> None:
             ctx: Context = args[0] if isinstance(args[0], Context) else args[1]
             ctx.lock()
             await old_callback(*args, **kwargs)

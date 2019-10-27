@@ -1,7 +1,7 @@
 from typing import BinaryIO, Generator, List, Optional, Tuple, Union
 from xml.dom import minidom  # type: ignore
 
-from tango.core.models.kanjidic2 import Kanji, KanjiMeaningsReadings
+from botto.core.models.kanjidic2 import Kanji, KanjiMeaningsReadings
 
 
 def _get_single_data(element: minidom.Element, tag_name: str) -> str:
