@@ -35,5 +35,8 @@ bot.load_extension("botto.modules.events")
 bot.load_extension("botto.modules.owner")
 bot.load_extension("botto.modules.meta")
 bot.load_extension("botto.modules.help")
+bot.load_extension("botto.modules.jisho")
+bot.load_extension("botto.modules.kanji")
+bot.load_extension("botto.modules.shiritori")
 
 bot.run(config.BOT_TOKEN)
