@@ -1,6 +1,6 @@
-from botto.core.bot import Tango
+from botto.core.bot import Botto
 
-db = Tango.db
+db = Botto.db
 
 # pylint: disable=no-member
 
