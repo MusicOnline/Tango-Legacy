@@ -30,6 +30,7 @@ logger.addHandler(file_hdlr)
 # Bot
 bot: Botto = Botto()
 
+bot.loop.run_until_complete(bot.db.set_bind(config.DATABASE_URI))
 bot.load_extension("jishaku")
 bot.load_extension("botto.modules.events")
 bot.load_extension("botto.modules.owner")
