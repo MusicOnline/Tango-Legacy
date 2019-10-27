@@ -4,6 +4,7 @@ from typing import Dict, List, Optional
 
 import asyncpg  # type: ignore
 import discord  # type: ignore
+from discord.ext import commands  # type: ignore
 
 import botto
 

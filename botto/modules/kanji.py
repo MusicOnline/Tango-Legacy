@@ -2,6 +2,7 @@ import os
 import unicodedata
 
 import discord  # type: ignore
+from discord.ext import commands  # type: ignore
 
 import botto
 from botto.core.models.kanjidic2 import Kanji, KanjiMeaningsReadings
