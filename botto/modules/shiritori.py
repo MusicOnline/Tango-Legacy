@@ -160,11 +160,9 @@ class Shiritori(commands.Cog):
         )
 
     @shiritori.help_embed
-    async def shiritori_help_embed(self) -> discord.Embed:
+    async def shiritori_help_embed(self, help_command) -> discord.Embed:
         embed: discord.Embed = discord.Embed(colour=botto.config.MAIN_COLOUR)
-        embed.set_author(
-            name=self.shiritori.signature_without_aliases  # pylint: disable=no-member
-        )
+        embed.set_author(name=self.shiritori.name + " " + self.shiritori.signature)
         embed.description = (
             f"{self.shiritori.short_doc}\n\n"  # pylint: disable=no-member
             f"Shiritori (しりとり) is a Japanese word game in which the players are "
@@ -411,11 +409,9 @@ class Shiritori(commands.Cog):
         )
 
     @shiritori_check.help_embed
-    async def shiritori_check_help_embed(self) -> discord.Embed:
+    async def shiritori_check_help_embed(self, help_command) -> discord.Embed:
         embed: discord.Embed = discord.Embed(colour=botto.config.MAIN_COLOUR)
-        embed.set_author(
-            name=self.shiritori_check.signature_without_aliases  # pylint: disable=no-member
-        )
+        embed.set_author(name=self.shiritori_check.name + " " + self.shiritori_check.signature)
         embed.description = (
             f"{self.shiritori_check.short_doc}\n\n"  # pylint: disable=no-member
             f"The current implementation of Tango's Shiritori only allows hiragana "
@@ -440,4 +436,8 @@ class Shiritori(commands.Cog):
 
 
 def setup(bot: botto.Botto) -> None:
-    bot.add_cog(Shiritori(bot))
+    # Temporary solution to issue where commands in cog instances lose their help embed
+    cog = Shiritori(bot)
+    cog.shiritori.help_embed(cog.shiritori_help_embed)
+    cog.shiritori_check.help_embed(cog.shiritori_check_help_embed)
+    bot.add_cog(cog)
