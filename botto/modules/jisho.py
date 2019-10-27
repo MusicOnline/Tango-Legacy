@@ -6,7 +6,7 @@ import discord  # type: ignore
 from kanaconv import KanaConv  # type: ignore
 from discord.ext import commands  # type: ignore
 
-import tango
+import botto
 
 romanizer = KanaConv()  # pylint: disable=invalid-name
 
@@ -51,8 +51,8 @@ class Link:  # pylint: disable=too-few-public-methods
 
 
 class Jisho:
-    def __init__(self, bot: tango.Tango) -> None:
-        self.bot: tango.Tango = bot
+    def __init__(self, bot: botto.Botto) -> None:
+        self.bot: botto.Botto = bot
 
     async def search(self, word: str) -> List[JishoEntry]:
         word = quote_plus(word)
@@ -62,9 +62,9 @@ class Jisho:
         entries = await response.json()
         return [JishoEntry(e) for e in entries["data"]]
 
-    @tango.command(aliases=["j", "じしょ", "辞書"])
+    @botto.command(aliases=["j", "じしょ", "辞書"])
     async def jisho(  # pylint: disable=too-many-branches
-        self, ctx: tango.Context, *, word: clean_content  # type: ignore
+        self, ctx: botto.Context, *, word: clean_content  # type: ignore
     ):
         """Look up a Japanese or English word."""
         try:
@@ -108,19 +108,19 @@ class Jisho:
 
             pages.append("\n".join(page))
 
-        paginator = tango.utils.EmbedPaginator(ctx, entries=pages, per_page=1)
+        paginator = botto.utils.EmbedPaginator(ctx, entries=pages, per_page=1)
         paginator.embed.set_author(name=f"Jisho entries related to {word}")
         await paginator.paginate()
 
     @jisho.help_embed
     async def jisho_help_embed(self) -> discord.Embed:
-        embed: discord.Embed = discord.Embed(colour=tango.config.TANGO_COLOUR)
+        embed: discord.Embed = discord.Embed(colour=botto.config.botto_COLOUR)
         embed.set_author(
             name=self.jisho.signature_without_aliases  # pylint: disable=no-member
         )
         embed.description = (
             f"{self.jisho.short_doc}\n\n"  # pylint: disable=no-member
-            f"Tango queries entries from [Jisho](https://jisho.org/) and displays them "
+            f"botto queries entries from [Jisho](https://jisho.org/) and displays them "
             f"in Discord for you and your friends.\n\n"
             f"To quote their main page, Jisho is a powerful Japanese-English "
             f"dictionary. It lets you find words, kanji, example sentences and more "
@@ -140,5 +140,5 @@ class Jisho:
         return embed
 
 
-def setup(bot: tango.Tango) -> None:
+def setup(bot: botto.Botto) -> None:
     bot.add_cog(Jisho(bot))

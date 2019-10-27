@@ -1,4 +1,4 @@
-from tango.core.bot import Tango
+from botto.core.bot import Tango
 
 db = Tango.db
 

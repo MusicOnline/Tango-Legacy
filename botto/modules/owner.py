@@ -1,5 +1,6 @@
 import asyncio
 import copy
+import datetime
 import io
 import logging
 import os
@@ -10,26 +11,27 @@ import textwrap
 import time
 from contextlib import redirect_stdout
 from subprocess import Popen, PIPE
-from typing import Any, Dict, List, Match, Optional
+from typing import Any, Dict, List, Match, Optional, Tuple
 
 import aiohttp  # type: ignore
 import import_expression  # type: ignore
 
 import discord  # type: ignore
+from discord.ext import commands  # type: ignore
 
-import tango
+import botto
 
 logger = logging.getLogger(__name__)
 
 
-class Owner:
+class Owner(commands.Cog, command_attrs=dict(hidden=True)):
     """Developer and owner-only commands."""
 
-    def __init__(self, bot: tango.Tango) -> None:
-        self.bot: tango.Tango = bot
+    def __init__(self, bot: botto.Botto) -> None:
+        self.bot: botto.Botto = bot
         self._last_result: Optional[Any] = None
 
-    async def __local_check(self, ctx: tango.Context) -> bool:
+    async def cog_check(self, ctx: botto.Context) -> bool:
         return await self.bot.is_owner(ctx.author)
 
     @staticmethod
@@ -41,13 +43,14 @@ class Owner:
         return content.strip("` \n")
 
     @staticmethod
-    def _get_origin(ctx: tango.Context) -> str:
+    def _get_origin(ctx: botto.Context) -> str:
         """Format channel and guild name."""
         origin: str = f"'{ctx.channel}'"
         if ctx.guild:
             origin += f" of '{ctx.guild}'"
         return origin
 
+    @commands.Cog.listener()
     async def on_raw_reaction_add(
         self, payload: discord.RawReactionActionEvent
     ) -> None:
@@ -58,9 +61,9 @@ class Owner:
         ):
             return
 
-        channel: tango.utils.OptionalChannel = self.bot.get_channel(payload.channel_id)
-        assert isinstance(channel, discord.TextChannel)
-        message: discord.Message = await channel.get_message(payload.message_id)
+        channel: botto.utils.OptionalChannel = self.bot.get_channel(payload.channel_id)
+        assert isinstance(channel, discord.abc.Messageable)
+        message: discord.Message = await channel.fetch_message(payload.message_id)
 
         if message.author != self.bot.user or not message.embeds:
             return
@@ -70,16 +73,18 @@ class Owner:
         )
         if match is None:
             return
+        if not botto.config.GITHUB_TOKEN:
+            raise ValueError("GITHUB_TOKEN not set in config file.")
 
         gist_id: str = match.group(1)
         url: str = f"https://api.github.com/gists/{gist_id}"
         headers: Dict[str, str] = {
-            "Authorization": f"token {os.environ['GITHUB_TOKEN']}"
+            "Authorization": f"token {botto.config.GITHUB_TOKEN}"
         }
 
         try:
             await self.bot.session.delete(url, headers=headers)
-        except aiohttp.ClientResponseError as exc:
+        except aiohttp.ClientResponseError as exc:  # type: ignore
             logger.error(
                 "Failed to delete gist %s in message ID: " "%s, server returned %s %s.",
                 gist_id,
@@ -98,42 +103,45 @@ class Owner:
             await message.edit(embed=embed)
             await message.remove_reaction("\N{WASTEBASKET}", self.bot.user)
             await message.remove_reaction(
-                "\N{WASTEBASKET}", discord.Object(self.bot.owner_id)
+                "\N{WASTEBASKET}", discord.Object(payload.user_id)
             )
         except (discord.Forbidden, discord.NotFound):
             pass
 
     # ------ Simple commands ------
 
-    @tango.command(hidden=True)
-    async def echo(self, ctx: tango.Context, *, content: str) -> None:
+    @botto.command()
+    async def echo(self, ctx: botto.Context, *, content: str) -> None:
         """Echo a message."""
         await ctx.send(content)
 
-    @tango.command(name="cls", hidden=True)
-    async def clear_terminal(self, ctx: tango.Context) -> None:
+    @botto.command(name="cls")
+    async def clear_terminal(self, ctx: botto.Context) -> None:
         """Clear terminal."""
-        os.system("cls")
+        if os.name == "nt":
+            os.system("cls")
+        else:
+            os.system("clear")
         await ctx.send("Cleared terminal buffer.")
 
-    @tango.command(hidden=True)
-    async def shutdown(self, ctx: tango.Context) -> None:
+    @botto.command()
+    async def shutdown(self, ctx: botto.Context) -> None:
         """Disconnect the bot from Discord and ends its processes."""
         await ctx.send("Shutdown initiated.")
-        await self.bot.shutdown()
+        await self.bot.close()
 
-    @tango.command(hidden=True)
-    async def logs(self, ctx: tango.Context) -> None:
+    @botto.command()
+    async def logs(self, ctx: botto.Context) -> None:
         """DM bot logs."""
-        with open("tango.log") as file:
+        with open("botto.log") as file:
             content: str = file.read()
             mystbin: str = await ctx.mystbin(content)
             await ctx.author.send(f"Logs: {mystbin}")
             await ctx.message.add_reaction("\N{OPEN MAILBOX WITH RAISED FLAG}")
 
-    @tango.command(hidden=True, aliases=["runas"])
+    @botto.command(aliases=["runas"])
     async def pseudo(
-        self, ctx: tango.Context, user: discord.Member, *, message: str
+        self, ctx: botto.Context, user: discord.Member, *, message: str
     ) -> None:
         """Run a command as another user."""
         msg: discord.Message = copy.copy(ctx.message)
@@ -143,54 +151,53 @@ class Owner:
 
     # ------ Module loading ------
 
-    @tango.command(hidden=True)
-    async def modules(self, ctx: tango.Context) -> None:
+    @botto.command()
+    async def modules(self, ctx: botto.Context) -> None:
         """Show loaded modules."""
         await ctx.send("\n".join(self.bot.extensions.keys()))
 
-    @tango.command(hidden=True)
-    async def load(self, ctx: tango.Context, module: str) -> None:
+    @botto.command()
+    async def load(self, ctx: botto.Context, module: str) -> None:
         """Load a module."""
-        if not module.startswith("tango.modules."):
-            module = f"tango.modules.{module}"
+        if not module.startswith("botto.modules."):
+            module = f"botto.modules.{module}"
 
         self.bot.load_extension(module)
         await ctx.send(f"Successfully loaded '{module}' module.")
 
-    @tango.command(hidden=True)
-    async def unload(self, ctx: tango.Context, module: str) -> None:
+    @botto.command()
+    async def unload(self, ctx: botto.Context, module: str) -> None:
         """Unload a module."""
-        if not module.startswith("tango.modules."):
-            module = f"tango.modules.{module}"
+        if not module.startswith("botto.modules."):
+            module = f"botto.modules.{module}"
 
         self.bot.unload_extension(module)
         await ctx.send(f"Successfully unloaded '{module}' module.")
 
-    @tango.command(hidden=True)
-    async def reload(self, ctx: tango.Context, module: str) -> None:
+    @botto.command()
+    async def reload(self, ctx: botto.Context, module: str) -> None:
         """Reload a module."""
-        if not module.startswith("tango.modules."):
-            module = f"tango.modules.{module}"
+        if not module.startswith("botto.modules."):
+            module = f"botto.modules.{module}"
 
-        self.bot.unload_extension(module)
-        self.bot.load_extension(module)
+        self.bot.reload_extension(module)
         await ctx.send(f"Successfully reloaded '{module}' module.")
 
     # ------ Profile editing ------
 
-    @tango.group(hidden=True, invoke_without_command=True)
-    async def edit(self, ctx: tango.Context) -> None:
+    @botto.group(invoke_without_command=True)
+    async def edit(self, ctx: botto.Context) -> None:
         """Edit the bot's profile attributes."""
-        await ctx.send("Please call a subcommand.")
+        raise botto.SubcommandRequired
 
-    @edit.command(hidden=True)
-    async def username(self, ctx: tango.Context, *, name: str) -> None:
+    @edit.command()
+    async def username(self, ctx: botto.Context, *, name: str) -> None:
         """Change the bot's username."""
         await self.bot.user.edit(username=name)
         await ctx.send(f"Client's username is now {self.bot.user}.")
 
-    @edit.command(hidden=True)
-    async def avatar(self, ctx: tango.Context, *, url: Optional[str] = None) -> None:
+    @edit.command()
+    async def avatar(self, ctx: botto.Context, *, url: Optional[str] = None) -> None:
         """Change the bot's avatar."""
         avatar: Optional[bytes] = None
         if url is not None:
@@ -198,7 +205,7 @@ class Owner:
         elif ctx.message.attachments:
             avatar = await ctx.get_as_bytes(ctx.message.attachments[0].url)
         if avatar is None:
-            await ctx.success("No image was passed.")
+            await ctx.send("No image was passed.")
             return
 
         await self.bot.user.edit(avatar=avatar)
@@ -206,34 +213,34 @@ class Owner:
 
     # ------ Testing errors ------
 
-    @tango.command(hidden=True)
-    async def testerror(self, ctx: tango.Context) -> None:
+    @botto.command()
+    async def testerror(self, ctx: botto.Context) -> None:
         """Test response on unexpected error."""
         raise RuntimeError("This is a test error.")
 
-    @tango.command(hidden=True)
-    async def testfundamentalerror(self, ctx: tango.Context) -> None:
+    @botto.command()
+    async def testfundamentalerror(self, ctx: botto.Context) -> None:
         """Test response when bot is missing fundamental permissions."""
-        raise tango.BotMissingFundamentalPermissions(["abstract_authority"])
+        raise botto.BotMissingFundamentalPermissions(["abstract_authority"])
 
     # ------ Code ------
 
-    @tango.command(hidden=True)
-    async def codestats(self, ctx: tango.Context) -> None:
+    @botto.command()
+    async def codestats(self, ctx: botto.Context) -> None:
         """Show code statistics of the bot."""
-        lines = {"py": 0}
+        lines: Dict[str, int] = {"py": 0}
 
         for root, _, files in os.walk("."):
-            if any(path in root for path in [".git", "__pycache__"]):
+            if any(path in root for path in [".git", "__pycache__", "venv"]):
                 continue
 
             for filename in files:
                 if not filename.endswith(tuple(f".{ext}" for ext in lines)):
                     continue
 
-                f_ext = filename.split(".")[-1]
+                f_ext: str = filename.split(".")[-1]
                 with open(os.path.join(root, filename), encoding="utf-8") as file:
-                    lines[f_ext] += len(file.readlines())
+                    lines[f_ext] += sum(1 for line in file.readlines() if line != "\n")
 
                 await asyncio.sleep(0)
 
@@ -241,25 +248,25 @@ class Owner:
 
     # ------ Eval commands ------
 
-    @tango.command(hidden=True)
-    async def shell(self, ctx: tango.Context, *, command: str) -> None:
+    @botto.command()
+    async def shell(self, ctx: botto.Context, *, command: str) -> None:
         """Run a shell command."""
 
         def run_shell(argv: List[str]) -> List[str]:
             with Popen(argv, stdout=PIPE, stderr=PIPE, shell=True) as proc:
                 return [std.decode("utf-8") for std in proc.communicate()]
 
-        await ctx.message.add_reaction("a:loading:420942895638642699")
+        await ctx.message.add_reaction(botto.aLOADING)
         command = self._cleanup_code(command)
-        argv = shlex.split(command)
-        start = time.perf_counter()
+        argv: List[str] = shlex.split(command)
+        start: float = time.perf_counter()
         stdout, stderr = await self.bot.loop.run_in_executor(None, run_shell, argv)
-        delta = (time.perf_counter() - start) * 1000
-        timestamp = ctx.message.created_at
-        await ctx.message.remove_reaction("a:loading:420942895638642699", ctx.me)
+        delta: float = (time.perf_counter() - start) * 1000
+        timestamp: datetime.datetime = ctx.message.created_at
+        await ctx.message.remove_reaction(botto.aLOADING, ctx.me)
 
-        result = ["```"]
-        to_upload = [("command.txt", command)]
+        result: List[str] = ["```"]
+        to_upload: List[Tuple[str, str]] = [("command.txt", command)]
         if stdout:
             result.append(f"stdout:\n{stdout}")
             to_upload.append(("stdout.txt", stdout))
@@ -268,17 +275,17 @@ class Owner:
             to_upload.append(("stderr.txt", stderr))
         result.append("```")
 
-        await ctx.message.add_reaction(":check:474939098075758604")
+        await ctx.message.add_reaction(botto.CHECK)
 
         # If there's no output, the command is done.
         if len(result) == 2:
             return
 
-        result_string = "\n".join(result)
-        is_uploaded = False
+        result_string: str = "\n".join(result)
+        is_uploaded: bool = False
 
         if len(result_string) > 2048:
-            url = await ctx.gist(
+            url: str = await ctx.gist(
                 *to_upload,
                 description=(
                     f"Shell command results from {self._get_origin(ctx)} "
@@ -288,7 +295,11 @@ class Owner:
             result_string = f"Results too long. View them [here]({url})."
             is_uploaded = True
 
-        embed = discord.Embed(description=result_string, timestamp=timestamp)
+        embed: discord.Embed = discord.Embed(
+            description=result_string,
+            timestamp=timestamp,
+            colour=botto.config.MAIN_COLOUR,
+        )
         embed.set_author(name="Shell Command Results")
         embed.set_footer(text=f"Took {delta:.2f} ms")
 
@@ -296,10 +307,10 @@ class Owner:
         if is_uploaded:
             await message.add_reaction("\N{WASTEBASKET}")
 
-    @tango.command(hidden=True, name="eval")
-    async def eval_command(self, ctx: tango.Context, *, code: str) -> None:
+    @botto.command(name="eval")
+    async def eval_command(self, ctx: botto.Context, *, code: str) -> None:
         """Evaluate a block of code."""
-        await ctx.message.add_reaction("a:loading:420942895638642699")
+        await ctx.message.add_reaction(botto.aLOADING)
         env = {
             "bot": self.bot,
             "ctx": ctx,
@@ -308,23 +319,20 @@ class Owner:
             "guild": ctx.guild,
             "message": ctx.message,
             "session": self.bot.session,
-            "db": self.bot.db,
             "_": self._last_result,
         }
         env.update(globals())
         code = self._cleanup_code(code)
-        stdout = io.StringIO()
-        to_compile = f"async def func():\n{textwrap.indent(code, '  ')}"
+        stdout: io.StringIO = io.StringIO()
+        to_compile: str = f"async def func():\n{textwrap.indent(code, '  ')}"
 
         # Defining the async function.
         try:
             import_expression.exec(to_compile, env)
         except Exception as exc:  # pylint: disable=broad-except
             try:
-                await ctx.message.remove_reaction(
-                    "a:loading:420942895638642699", ctx.me
-                )
-                await ctx.message.add_reaction(":cross:474939098625474560")
+                await ctx.message.remove_reaction(botto.aLOADING, ctx.me)
+                await ctx.message.add_reaction(botto.CROSS)
             except discord.NotFound:
                 pass  # Ignore if command message was deleted
             await ctx.send(f"{type(exc).__name__} occured. Check your code.")
@@ -334,48 +342,46 @@ class Owner:
 
         # Executing the async function.
         try:
-            start = time.perf_counter()
+            start: float = time.perf_counter()
             with redirect_stdout(stdout):
-                ret = await func()
+                ret: Any = await func()
         except Exception as exc:  # pylint: disable=broad-except
             try:
-                await ctx.message.remove_reaction(
-                    "a:loading:420942895638642699", ctx.me
-                )
-                await ctx.message.add_reaction(":cross:474939098625474560")
+                await ctx.message.remove_reaction(botto.aLOADING, ctx.me)
+                await ctx.message.add_reaction(botto.CROSS)
             except discord.NotFound:
                 pass  # Ignore if command message was deleted
             await ctx.send(f"{type(exc).__name__} occured.\n{str(exc)}")
             return
 
         # When code execution is successful
-        delta = (time.perf_counter() - start) * 1000
-        value = stdout.getvalue()
+        delta: float = (time.perf_counter() - start) * 1000
+        value: str = stdout.getvalue()
 
         # Try to unreact
         try:
-            await ctx.message.remove_reaction("a:loading:420942895638642699", ctx.me)
-            await ctx.message.add_reaction(":check:474939098075758604")
+            await ctx.message.remove_reaction(botto.aLOADING, ctx.me)
+            await ctx.message.add_reaction(botto.CHECK)
         except discord.NotFound:
             if not value and ret is None:
                 await ctx.send(
-                    f"{ctx.author.mention} Code execution completed "
-                    f"in {delta:.2f} ms.",
-                    delete_after=60,
+                    f"{ctx.author.mention} Code execution completed in {delta:.2f} ms."
                 )
 
         if not value and ret is None:
             return
 
         # If there is stdout and return value
-        embed = discord.Embed(timestamp=ctx.message.created_at)
+        embed: discord.Embed = discord.Embed(
+            timestamp=ctx.message.created_at, colour=botto.config.MAIN_COLOUR
+        )
         embed.set_author(name="Code Evaluation")
         embed.set_footer(
-            text=(f"Took {delta:.2f} ms " f"with Python {platform.python_version()}")
+            text=f"Took {delta:.2f} ms with Python {platform.python_version()}"
         )
 
-        result = ["```py"]
-        to_upload = [("code.py", code)]
+        result: List[str] = ["```py"]
+        to_upload: List[Tuple[str, str]] = [("code.py", code)]
         if value:
             result.append(f"# stdout:\n{value}")
             to_upload.append(("stdout.txt", value))
@@ -385,11 +391,11 @@ class Owner:
             to_upload.append(("return.py", repr(ret)))
         result.append("```")
 
-        result_string = "\n".join(result)
-        is_uploaded = False
+        result_string: str = "\n".join(result)
+        is_uploaded: bool = False
 
         if len(result_string) > 2048:
-            url = await ctx.gist(
+            url: str = await ctx.gist(
                 *to_upload,
                 description=(
                     f"Eval command results from {self._get_origin(ctx)} "
@@ -406,5 +412,5 @@ class Owner:
             await message.add_reaction("\N{WASTEBASKET}")
 
 
-def setup(bot: tango.Tango) -> None:
+def setup(bot: botto.Botto) -> None:
     bot.add_cog(Owner(bot))

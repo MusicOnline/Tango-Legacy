@@ -2,7 +2,7 @@ from typing import BinaryIO, Dict, Generator, List, Tuple, Union
 
 from lxml import etree  # type: ignore
 
-from tango.core.models.jmdict import (
+from botto.core.models.jmdict import (
     Entry,
     WritingElement,
     ReadingElement,

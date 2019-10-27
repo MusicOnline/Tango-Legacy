@@ -1,5 +1,8 @@
 venv/
+<<<<<<< HEAD
 resources/
+=======
+>>>>>>> upstream/master
 mypy.ini
 .pylintrc
 *.pyc

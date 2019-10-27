@@ -2,12 +2,12 @@ import logging
 import sys
 
 from . import config
-from .core import Tango
+from .core import Botto
 
 # Logging
 dpy_logger: logging.Logger = logging.getLogger("discord")
 dpy_logger.setLevel(logging.WARNING)
-logger: logging.Logger = logging.getLogger("tango")
+logger: logging.Logger = logging.getLogger("botto")
 logger.setLevel(logging.INFO)
 
 formatter: logging.Formatter = logging.Formatter(
@@ -16,7 +16,7 @@ formatter: logging.Formatter = logging.Formatter(
 
 stream_hdlr: logging.StreamHandler = logging.StreamHandler(sys.stdout)
 file_hdlr: logging.FileHandler = logging.FileHandler(
-    filename="tango.log", encoding="utf-8", mode="w"
+    filename="botto.log", encoding="utf-8", mode="w"
 )
 
 stream_hdlr.setFormatter(formatter)
@@ -28,15 +28,12 @@ logger.addHandler(stream_hdlr)
 logger.addHandler(file_hdlr)
 
 # Bot
-bot: Tango = Tango()
+bot: Botto = Botto()
 
-bot.loop.run_until_complete(bot.db.set_bind(config.DATABASE_URI))
 bot.load_extension("jishaku")
-bot.load_extension("tango.modules.events")
-bot.load_extension("tango.modules.owner")
-bot.load_extension("tango.modules.meta")
-bot.load_extension("tango.modules.jisho")
-bot.load_extension("tango.modules.kanji")
-bot.load_extension("tango.modules.shiritori")
+bot.load_extension("botto.modules.events")
+bot.load_extension("botto.modules.owner")
+bot.load_extension("botto.modules.meta")
+bot.load_extension("botto.modules.help")
 
 bot.run(config.BOT_TOKEN)
