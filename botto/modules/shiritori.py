@@ -60,7 +60,7 @@ KATAKANA_SYLLABLES = [
     "チェ", "シェ", "ジェ"
 ]
 
-SUTEGANA = "ぁぃぅぇぉゃゅょゎァィゥェォャュョヮ"
+SUTEGANA = "ぁぃぅぇぉゃゅょァィゥェォャュョ"
 
 NON_SYLLABLES = ["っ", "ッ", "ー"]
 
@@ -75,10 +75,24 @@ class Shiritori(commands.Cog):
     def __init__(self, bot: botto.Botto) -> None:
         self.bot: botto.Botto = bot
         self.sessions: Dict[discord.User, asyncio.Task] = {}
+        self.total_nouns = 150000
+        self.bot.loop.create_task(self.get_total_nouns())
 
     def __unload(self) -> None:
         for task in self.sessions.values():
             task.cancel()
+
+    async def get_total_nouns(self) -> None:
+        self.total_nouns = await self.bot.db.scalar(
+            """
+            SELECT
+                COUNT(index)
+            FROM
+                "JMdict_Sense"
+            WHERE
+                'noun (common) (futsuumeishi)' = ANY(parts_of_speech);
+            """
+        )
 
     async def check_is_noun(self, word: str) -> bool:
         try:
@@ -107,6 +121,7 @@ class Shiritori(commands.Cog):
     async def get_next_word(
         self, kana_a: str, kana_b: str, used_words: Optional[List[str]] = None
     ) -> Optional[str]:
+        # kana_a and kana_b are different kana of the same syllable.
 
         if used_words is None:
             used_words = []
@@ -132,7 +147,7 @@ class Shiritori(commands.Cog):
                 AND NOT rs.reading_literal = ANY(ARRAY[{}]::text[])
                 AND 'noun (common) (futsuumeishi)' = ANY(s.parts_of_speech);
             """.format(
-                random.randint(1000000, 1500000),
+                random.randint(1000000, 2000000),
                 regex_strategy,
                 ", ".join(repr(s) for s in used_words),
             )
@@ -341,8 +356,9 @@ class Shiritori(commands.Cog):
 
         if not is_noun:
             await ctx.send(
-                f"{emoji} {ctx.author} Seems like {word} is not a common noun (普通名詞) used in"
-                f"the Japanese language. Score: {score}"
+                f"{emoji} {ctx.author} Seems like {word} is not one of the {self.total_nouns} "
+                f"common nouns (普通名詞) used in the Japanese language (that I know of). "
+                f"Score: {score}"
             )
             raise asyncio.CancelledError
 
@@ -413,8 +429,8 @@ class Shiritori(commands.Cog):
 
         if not is_noun:
             await ctx.send(
-                f"{botto.BLOBSADPATS} Seems like {word} is not a common noun (普通名詞) used in "
-                f"the Japanese language."
+                f"{botto.BLOBSADPATS} Seems like {word} is not one of the {self.total_nouns} "
+                f"common nouns (普通名詞) used in the Japanese language (that I know of)."
             )
             return
 
