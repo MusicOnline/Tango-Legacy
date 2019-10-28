@@ -49,7 +49,9 @@ class KanjiSearch(commands.Cog):
         if not os.path.isfile(filename):
             raise ValueError("No stroke diagram found.")
         output = f"resources/data/kanjivg_kanimaji_gif/{codepoint}_anim.gif"
-        await self.bot.loop.run_in_executor(None, kanimaji.create_gif, filename)
+        await self.bot.loop.run_in_executor(
+            None, kanimaji.create_gif, filename, output
+        )
         return discord.File(
             output, f"{unicodedata.name(character)}.gif".replace(" ", "_")
         )
