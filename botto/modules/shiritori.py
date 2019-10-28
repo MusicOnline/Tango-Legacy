@@ -247,18 +247,18 @@ class Shiritori(commands.Cog):
                 score = len(used_words) // 2
                 if score == 0:
                     await ctx.send(
-                        f"{botto.aBLOBSHAKE} {ctx.author} You took too long to answer. "
-                        f"Try increasing the time limit!"
+                        f"{botto.aBLOBSHAKE} {ctx.author.mention} You took too long to answer."
+                        + (f" Try increasing the time limit!" if timeout < 60 else "")
                     )
                 elif score >= 10:
                     await ctx.send(
-                        f"{botto.aBLOBCHEER} {ctx.author} Tick tock, time's up! "
-                        f"You scored {score} point(s) this time."
+                        f"{botto.aBLOBCHEER} {ctx.author.mention} Tick tock, time's up! "
+                        f"You scored {score} point(s) this time. Well done!"
                     )
                 else:
                     await ctx.send(
-                        f"{botto.aBLOBSHAKE} {ctx.author} Tick tock, time's up! "
-                        f"You scored {score} point(s) this time."
+                        f"{botto.aBLOBSHAKE} {ctx.author.mention} Tick tock, time's up! "
+                        f"You scored {score} point(s) this time. You can do better!"
                     )
                 return
             used_words = await self.process_turn(ctx, msg.content, used_words)
@@ -328,28 +328,28 @@ class Shiritori(commands.Cog):
                 number_of_syllables += 1
             elif char not in NON_SYLLABLES:
                 await ctx.send(
-                    f"{emoji} {ctx.author} Your word must be in hiragana or katakana. "
+                    f"{emoji} {ctx.author.mention} Your word must be in hiragana or katakana. "
                     f"What's {char}? Score: {score}"
                 )
                 raise asyncio.CancelledError
 
         if last_syllable is None:
             await ctx.send(
-                f"{emoji} {ctx.author} Sokuon, sokuon, dash dash dash? Score: {score}"
+                f"{emoji} {ctx.author.mention} Sokuon, sokuon, dash dash dash? Score: {score}"
             )
             raise asyncio.CancelledError
         elif not word.startswith((prev_last_syllable, prev_other_syllable)):
             await ctx.send(
-                f"{emoji} {word} does not start with {prev_last_syllable} or "
+                f"{emoji} {ctx.author.mention} {word} does not start with {prev_last_syllable} or "
                 f"{prev_other_syllable}! Score: {score}"
             )
             raise asyncio.CancelledError
         elif last_syllable == "ん" or last_syllable == "ン":
-            await ctx.send(f"{emoji} {word} ends with ん or ン! Score: {score}")
+            await ctx.send(f"{emoji} {ctx.author.mention} {word} ends with ん or ン! Score: {score}")
             raise asyncio.CancelledError
         elif number_of_syllables < 2:
             await ctx.send(
-                f"{emoji} {ctx.author} Your word needs at least two syllables/kana. "
+                f"{emoji} {ctx.author.mention} Your word needs at least two syllables/kana. "
                 f"Score: {score}"
             )
             raise asyncio.CancelledError
@@ -359,7 +359,7 @@ class Shiritori(commands.Cog):
 
         if not is_noun:
             await ctx.send(
-                f"{emoji} {ctx.author} Seems like {word} is not one of the {self.total_nouns} "
+                f"{emoji} {ctx.author.mention} Seems like {word} is not one of the {self.total_nouns} "
                 f"common nouns (普通名詞) used in the Japanese language (that I know of). "
                 f"Score: {score}"
             )
@@ -370,13 +370,15 @@ class Shiritori(commands.Cog):
 
         if reading is None:
             await ctx.send(
-                f"{botto.aBLOBSHAKE} {ctx.author} I'm lost for words..."
-                f" Score: {score}\n\nYou exhausted my vocabulary! "
-                f"*(If you actually see this, I'm probably broken.)*"
+                f"{botto.aBLOBSHAKE} {ctx.author.mention} I'm lost for words..."
+                f" Score: {score}\n\nYou exhausted my vocabulary for now!"
             )
             raise asyncio.CancelledError
+        if writing is None:
+            await ctx.send(f"{botto.BLOBFISTBUMP} {reading}")
+        else:
+            await ctx.send(f"{botto.BLOBFISTBUMP} {writing} ({reading})")
 
-        await ctx.send(f"{botto.BLOBFISTBUMP} {reading}" + (f" {writing}" if writing else ""))
         used_words.append(reading)
         return used_words
 
