@@ -27,6 +27,12 @@ HIRAGANA_SYLLABLES = [
     "だ", "ぢ", "づ", "で", "ど", "ぢゃ", "ぢゅ", "ぢょ",
     "ば", "び", "ぶ", "べ", "ぼ", "びゃ", "びゅ", "びょ",
     "ぱ", "ぴ", "ぷ", "ぺ", "ぽ", "ぴゃ", "ぴゅ", "ぴょ",
+    "ゔぁ", "ゔぃ", "ゔ", "ゔぇ", "ゔぉ",
+    "うぃ", "うぇ", "うぉ",
+    "ふぁ", "ふぃ", "ふぇ", "ふぉ",
+    "てぃ", "とぅ",
+    "でぃ", "どぅ",
+    "ちぇ", "しぇ", "じぇ"
 ]
 
 KATAKANA_SYLLABLES = [
@@ -46,9 +52,18 @@ KATAKANA_SYLLABLES = [
     "ダ", "ヂ", "ヅ", "デ", "ド", "ヂャ", "ヂュ", "ヂョ",
     "バ", "ビ", "ブ", "ベ", "ボ", "ビャ", "ビュ", "ビョ",
     "パ", "ピ", "プ", "ペ", "ポ", "ピャ", "ピュ", "ピョ",
+    "ヴァ", "ヴィ", "ヴ", "ヴェ", "ヴォ",
+    "ウィ", "ウェ", "ウォ",
+    "ファ", "フィ", "フェ", "フォ",
+    "ティ", "トゥ",
+    "ディ", "ドゥ",
+    "チェ", "シェ", "ジェ"
 ]
 
+SUTEGANA = "ぁぃぅぇぉゃゅょァィゥェォャュョ"
+
 NON_SYLLABLES = ["っ", "ッ", "ー"]
+
 # fmt: on
 # pylint: enable=bad-whitespace
 
@@ -60,10 +75,26 @@ class Shiritori(commands.Cog):
     def __init__(self, bot: botto.Botto) -> None:
         self.bot: botto.Botto = bot
         self.sessions: Dict[discord.User, asyncio.Task] = {}
+        self.total_nouns = 150000
+        self.bot.loop.create_task(self.get_total_nouns())
 
     def __unload(self) -> None:
         for task in self.sessions.values():
             task.cancel()
+
+    async def get_total_nouns(self) -> None:
+        self.total_nouns = await self.bot.db.scalar(
+            """
+            SELECT
+                COUNT(e.id)
+            FROM
+                "JMdict_Entry" as e
+                LEFT JOIN "JMdict_Sense" as s
+                    ON e.id = s.entry_id
+            WHERE
+                'noun (common) (futsuumeishi)' = ANY(s.parts_of_speech);
+            """
+        )
 
     async def check_is_noun(self, word: str) -> bool:
         try:
@@ -74,8 +105,7 @@ class Shiritori(commands.Cog):
                         1
                     FROM
                         "JMdict_ReadingSense" AS rs
-                    INNER JOIN
-                        "JMdict_Sense" AS s
+                        INNER JOIN "JMdict_Sense" AS s
                             ON rs.entry_id = s.entry_id
                             AND rs.sense_index = s.index
                     WHERE
@@ -92,6 +122,7 @@ class Shiritori(commands.Cog):
     async def get_next_word(
         self, kana_a: str, kana_b: str, used_words: Optional[List[str]] = None
     ) -> Optional[str]:
+        # kana_a and kana_b are different kana of the same syllable.
 
         if used_words is None:
             used_words = []
@@ -99,25 +130,27 @@ class Shiritori(commands.Cog):
         if len(kana_a) == 2:
             regex_strategy: str = f"^(?:(?:{kana_a})|(?:{kana_b})).*[^んン]$"
         else:
-            regex_strategy = f"^[{kana_a}{kana_b}][^ゃゅょャュョ].*[^んン]$"
+            regex_strategy = f"^[{kana_a}{kana_b}][^{SUTEGANA}].*[^んン]$"
 
         return await self.bot.db.scalar(
             """
             SELECT
-                rs.reading_literal
+                (rs.reading_literal, rw.writing_literal)
             FROM
                 "JMdict_ReadingSense" AS rs
-            INNER JOIN
-                "JMdict_Sense" AS s
+                INNER JOIN "JMdict_Sense" AS s
                     ON rs.entry_id = s.entry_id
                     AND rs.sense_index = s.index
+                LEFT JOIN "JMdict_ReadingWriting" AS rw
+                    ON rs.entry_id = rw.entry_id
+                    AND rs.reading_literal = rw.reading_literal
             WHERE
                 rs.entry_id > {}
                 AND rs.reading_literal ~ '{}'
                 AND NOT rs.reading_literal = ANY(ARRAY[{}]::text[])
                 AND 'noun (common) (futsuumeishi)' = ANY(s.parts_of_speech);
             """.format(
-                random.randint(1000000, 1500000),
+                random.randint(1000000, 2000000),
                 regex_strategy,
                 ", ".join(repr(s) for s in used_words),
             )
@@ -214,18 +247,18 @@ class Shiritori(commands.Cog):
                 score = len(used_words) // 2
                 if score == 0:
                     await ctx.send(
-                        f"{botto.aBLOBSHAKE} {ctx.author} You took too long to answer. "
-                        f"Try increasing the time limit!"
+                        f"{botto.aBLOBSHAKE} {ctx.author.mention} You took too long to answer."
+                        + (f" Try increasing the time limit!" if timeout < 60 else "")
                     )
                 elif score >= 10:
                     await ctx.send(
-                        f"{botto.aBLOBCHEER} {ctx.author} Tick tock, time's up! "
-                        f"You scored {score} point(s) this time."
+                        f"{botto.aBLOBCHEER} {ctx.author.mention} Tick tock, time's up! "
+                        f"You scored {score} point(s) this time. Well done!"
                     )
                 else:
                     await ctx.send(
-                        f"{botto.aBLOBSHAKE} {ctx.author} Tick tock, time's up! "
-                        f"You scored {score} point(s) this time."
+                        f"{botto.aBLOBSHAKE} {ctx.author.mention} Tick tock, time's up! "
+                        f"You scored {score} point(s) this time. You can do better!"
                     )
                 return
             used_words = await self.process_turn(ctx, msg.content, used_words)
@@ -252,14 +285,14 @@ class Shiritori(commands.Cog):
 
         for i, char in enumerate(prev_word):
             try:
-                if prev_word[i + 1] in "ゃゅょャュョ":
+                if prev_word[i + 1] in SUTEGANA:
                     continue
             except IndexError:
                 pass
 
-            if char in "ゃゅょャュョ" and i >= 1:
+            if char in SUTEGANA and i >= 1:
                 char = prev_word[i - 1] + char
-            elif char in "ゃゅょャュョ" and i == 0:
+            elif char in SUTEGANA and i == 0:
                 break
 
             if char in HIRAGANA_SYLLABLES:
@@ -275,14 +308,14 @@ class Shiritori(commands.Cog):
 
         for i, char in enumerate(word):
             try:
-                if word[i + 1] in "ゃゅょャュョ":
+                if word[i + 1] in SUTEGANA:
                     continue
             except IndexError:
                 pass
 
-            if char in "ゃゅょャュョ" and i >= 1:
+            if char in SUTEGANA and i >= 1:
                 char = word[i - 1] + char
-            elif char in "ゃゅょャュョ" and i == 0:
+            elif char in SUTEGANA and i == 0:
                 break
 
             if char in HIRAGANA_SYLLABLES:
@@ -295,28 +328,28 @@ class Shiritori(commands.Cog):
                 number_of_syllables += 1
             elif char not in NON_SYLLABLES:
                 await ctx.send(
-                    f"{emoji} {ctx.author} Your word must be in hiragana or katakana. "
+                    f"{emoji} {ctx.author.mention} Your word must be in hiragana or katakana. "
                     f"What's {char}? Score: {score}"
                 )
                 raise asyncio.CancelledError
 
         if last_syllable is None:
             await ctx.send(
-                f"{emoji} {ctx.author} Sokuon, sokuon, dash dash dash? Score: {score}"
+                f"{emoji} {ctx.author.mention} Sokuon, sokuon, dash dash dash? Score: {score}"
             )
             raise asyncio.CancelledError
         elif not word.startswith((prev_last_syllable, prev_other_syllable)):
             await ctx.send(
-                f"{emoji} {word} does not start with {prev_last_syllable} or "
+                f"{emoji} {ctx.author.mention} {word} does not start with {prev_last_syllable} or "
                 f"{prev_other_syllable}! Score: {score}"
             )
             raise asyncio.CancelledError
         elif last_syllable == "ん" or last_syllable == "ン":
-            await ctx.send(f"{emoji} {word} ends with ん or ン! Score: {score}")
+            await ctx.send(f"{emoji} {ctx.author.mention} {word} ends with ん or ン! Score: {score}")
             raise asyncio.CancelledError
         elif number_of_syllables < 2:
             await ctx.send(
-                f"{emoji} {ctx.author} Your word needs at least two syllables/kana. "
+                f"{emoji} {ctx.author.mention} Your word needs at least two syllables/kana. "
                 f"Score: {score}"
             )
             raise asyncio.CancelledError
@@ -326,24 +359,27 @@ class Shiritori(commands.Cog):
 
         if not is_noun:
             await ctx.send(
-                f"{emoji} {ctx.author} Seems like {word} is not a common noun used "
-                f"the Japanese language. Score: {score}"
+                f"{emoji} {ctx.author.mention} Seems like {word} is not one of the {self.total_nouns} "
+                f"common nouns (普通名詞) used in the Japanese language (that I know of). "
+                f"Score: {score}"
             )
             raise asyncio.CancelledError
 
         async with ctx.typing():
-            answer = await self.get_next_word(last_syllable, other_syllable, used_words)
+            reading, writing = await self.get_next_word(last_syllable, other_syllable, used_words)
 
-        if answer is None:
+        if reading is None:
             await ctx.send(
-                f"{botto.aBLOBSHAKE} {ctx.author} I'm lost for words..."
-                f" Score: {score}\n\nYou exhausted my vocabulary! "
-                f"*(If you actually see this, I'm probably broken.)*"
+                f"{botto.aBLOBSHAKE} {ctx.author.mention} I'm lost for words..."
+                f" Score: {score}\n\nYou exhausted my vocabulary for now!"
             )
             raise asyncio.CancelledError
+        if writing is None:
+            await ctx.send(f"{botto.BLOBFISTBUMP} {reading}")
+        else:
+            await ctx.send(f"{botto.BLOBFISTBUMP} {writing} ({reading})")
 
-        await ctx.send(f"{botto.BLOBFISTBUMP} {answer}")
-        used_words.append(answer)
+        used_words.append(reading)
         return used_words
 
     @shiritori.command(name="check", aliases=["かくにん", "確認"])
@@ -356,14 +392,14 @@ class Shiritori(commands.Cog):
 
         for i, char in enumerate(word):
             try:
-                if word[i + 1] in "ゃゅょャュョ":
+                if word[i + 1] in SUTEGANA:
                     continue
             except IndexError:
                 pass
 
-            if char in "ゃゅょャュョ" and i >= 1:
+            if char in SUTEGANA and i >= 1:
                 char = word[i - 1] + char
-            elif char in "ゃゅょャュョ" and i == 0:
+            elif char in SUTEGANA and i == 0:
                 break
 
             if char in HIRAGANA_SYLLABLES:
@@ -398,8 +434,8 @@ class Shiritori(commands.Cog):
 
         if not is_noun:
             await ctx.send(
-                f"{botto.BLOBSADPATS} Seems like {word} is not a common noun used in "
-                f"the Japanese language."
+                f"{botto.BLOBSADPATS} Seems like {word} is not one of the {self.total_nouns} "
+                f"common nouns (普通名詞) used in the Japanese language (that I know of)."
             )
             return
 
