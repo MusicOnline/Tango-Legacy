@@ -6,7 +6,7 @@ from discord.ext import commands  # type: ignore
 
 import botto
 from botto.core.models.kanjidic2 import Kanji, KanjiMeaningsReadings
-from botto.utils import kanjivg_gif
+from botto.utils import kanjivg_gif, kanimaji
 
 
 class KanjiSearch(commands.Cog):
@@ -15,15 +15,22 @@ class KanjiSearch(commands.Cog):
 
     async def get_stroke_diagram(self, character: str) -> discord.File:
         codepoint = f"{ord(character):05x}"
-        filename = f"resources/data/kanjivg_gif/{codepoint}.gif"
+        # filename = f"resources/data/kanjivg_gif/{codepoint}.gif"
+        # if os.path.isfile(filename):
+        #     return discord.File(
+        #         filename, f"{unicodedata.name(character)}.gif".replace(" ", "_")
+        #     )
+        # else:
+        #     return await self.create_kanji_vg_gif(character)
+        filename = f"resources/data/kanjivg_kanimaji_gif/{codepoint}_anim.gif"
         if os.path.isfile(filename):
             return discord.File(
                 filename, f"{unicodedata.name(character)}.gif".replace(" ", "_")
             )
         else:
-            return await self.create_stroke_diagram(character)
+            return await self.create_kanimaji_gif(character)
 
-    async def create_stroke_diagram(self, character: str) -> discord.File:
+    async def create_kanji_vg_gif(self, character: str) -> discord.File:
         codepoint = f"{ord(character):05x}"
         filename = f"resources/data/kanjivg_svg/{codepoint}.svg"
         if not os.path.isfile(filename):
@@ -31,6 +38,19 @@ class KanjiSearch(commands.Cog):
         output = f"resources/data/kanjivg_gif/{codepoint}.gif"
         await self.bot.loop.run_in_executor(
             None, kanjivg_gif.create_gif, filename, output
+        )
+        return discord.File(
+            output, f"{unicodedata.name(character)}.gif".replace(" ", "_")
+        )
+
+    async def create_kanimaji_gif(self, character: str) -> discord.File:
+        codepoint = f"{ord(character):05x}"
+        filename = f"resources/data/kanjivg_svg/{codepoint}.svg"
+        if not os.path.isfile(filename):
+            raise ValueError("No stroke diagram found.")
+        output = f"resources/data/kanjivg_kanimaji_gif/{codepoint}_anim.gif"
+        await self.bot.loop.run_in_executor(
+            None, kanimaji.create_gif, filename, output
         )
         return discord.File(
             output, f"{unicodedata.name(character)}.gif".replace(" ", "_")

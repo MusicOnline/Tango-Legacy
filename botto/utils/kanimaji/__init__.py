@@ -328,8 +328,8 @@ def create_gif(filename, output=None):
     pngframefiles = []
     svgexport_data = []
     for k in static_css:
-        svgframefile = os.path.join(dirname, f"_frame{k:04}.svg")
-        pngframefile = os.path.join(dirname, f"_frame{k:04}.png")
+        svgframefile = os.path.join(dirname, f"{basename_noext}_frame{k:04}.svg")
+        pngframefile = os.path.join(dirname, f"{basename_noext}_frame{k:04}.png")
         svgframefiles.append(svgframefile)
         pngframefiles.append(pngframefile)
         svgexport_data.append(
