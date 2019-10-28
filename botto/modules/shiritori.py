@@ -60,7 +60,10 @@ KATAKANA_SYLLABLES = [
     "チェ", "シェ", "ジェ"
 ]
 
+SUTEGANA = "ぁぃぅぇぉゃゅょゎァィゥェォャュョヮ"
+
 NON_SYLLABLES = ["っ", "ッ", "ー"]
+
 # fmt: on
 # pylint: enable=bad-whitespace
 
@@ -111,7 +114,7 @@ class Shiritori(commands.Cog):
         if len(kana_a) == 2:
             regex_strategy: str = f"^(?:(?:{kana_a})|(?:{kana_b})).*[^んン]$"
         else:
-            regex_strategy = f"^[{kana_a}{kana_b}][^ゃゅょャュョ].*[^んン]$"
+            regex_strategy = f"^[{kana_a}{kana_b}][^{SUTEGANA}].*[^んン]$"
 
         return await self.bot.db.scalar(
             """
@@ -264,14 +267,14 @@ class Shiritori(commands.Cog):
 
         for i, char in enumerate(prev_word):
             try:
-                if prev_word[i + 1] in "ゃゅょャュョ":
+                if prev_word[i + 1] in SUTEGANA:
                     continue
             except IndexError:
                 pass
 
-            if char in "ゃゅょャュョ" and i >= 1:
+            if char in SUTEGANA and i >= 1:
                 char = prev_word[i - 1] + char
-            elif char in "ゃゅょャュョ" and i == 0:
+            elif char in SUTEGANA and i == 0:
                 break
 
             if char in HIRAGANA_SYLLABLES:
@@ -287,14 +290,14 @@ class Shiritori(commands.Cog):
 
         for i, char in enumerate(word):
             try:
-                if word[i + 1] in "ゃゅょャュョ":
+                if word[i + 1] in SUTEGANA:
                     continue
             except IndexError:
                 pass
 
-            if char in "ゃゅょャュョ" and i >= 1:
+            if char in SUTEGANA and i >= 1:
                 char = word[i - 1] + char
-            elif char in "ゃゅょャュョ" and i == 0:
+            elif char in SUTEGANA and i == 0:
                 break
 
             if char in HIRAGANA_SYLLABLES:
@@ -338,7 +341,7 @@ class Shiritori(commands.Cog):
 
         if not is_noun:
             await ctx.send(
-                f"{emoji} {ctx.author} Seems like {word} is not a common noun used "
+                f"{emoji} {ctx.author} Seems like {word} is not a common noun (普通名詞) used in"
                 f"the Japanese language. Score: {score}"
             )
             raise asyncio.CancelledError
@@ -368,14 +371,14 @@ class Shiritori(commands.Cog):
 
         for i, char in enumerate(word):
             try:
-                if word[i + 1] in "ゃゅょャュョ":
+                if word[i + 1] in SUTEGANA:
                     continue
             except IndexError:
                 pass
 
-            if char in "ゃゅょャュョ" and i >= 1:
+            if char in SUTEGANA and i >= 1:
                 char = word[i - 1] + char
-            elif char in "ゃゅょャュョ" and i == 0:
+            elif char in SUTEGANA and i == 0:
                 break
 
             if char in HIRAGANA_SYLLABLES:
@@ -410,7 +413,7 @@ class Shiritori(commands.Cog):
 
         if not is_noun:
             await ctx.send(
-                f"{botto.BLOBSADPATS} Seems like {word} is not a common noun used in "
+                f"{botto.BLOBSADPATS} Seems like {word} is not a common noun (普通名詞) used in "
                 f"the Japanese language."
             )
             return
