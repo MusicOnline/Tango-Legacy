@@ -28,7 +28,7 @@ class KanjiSearch(commands.Cog):
                 filename, f"{unicodedata.name(character)}.gif".replace(" ", "_")
             )
         else:
-            return await self.create_kaniamaji_gif(character)
+            return await self.create_kanimaji_gif(character)
 
     async def create_kanji_vg_gif(self, character: str) -> discord.File:
         codepoint = f"{ord(character):05x}"
