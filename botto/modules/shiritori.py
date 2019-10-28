@@ -86,11 +86,13 @@ class Shiritori(commands.Cog):
         self.total_nouns = await self.bot.db.scalar(
             """
             SELECT
-                COUNT(index)
+                COUNT(e.id)
             FROM
-                "JMdict_Sense"
+                "JMdict_Entry" as e
+                LEFT JOIN "JMdict_Sense" as s
+                    ON e.id = s.entry_id
             WHERE
-                'noun (common) (futsuumeishi)' = ANY(parts_of_speech);
+                'noun (common) (futsuumeishi)' = ANY(s.parts_of_speech);
             """
         )
 
@@ -103,8 +105,7 @@ class Shiritori(commands.Cog):
                         1
                     FROM
                         "JMdict_ReadingSense" AS rs
-                    INNER JOIN
-                        "JMdict_Sense" AS s
+                        INNER JOIN "JMdict_Sense" AS s
                             ON rs.entry_id = s.entry_id
                             AND rs.sense_index = s.index
                     WHERE
@@ -134,13 +135,15 @@ class Shiritori(commands.Cog):
         return await self.bot.db.scalar(
             """
             SELECT
-                rs.reading_literal
+                (rs.reading_literal, rw.writing_literal)
             FROM
                 "JMdict_ReadingSense" AS rs
-            INNER JOIN
-                "JMdict_Sense" AS s
+                INNER JOIN "JMdict_Sense" AS s
                     ON rs.entry_id = s.entry_id
                     AND rs.sense_index = s.index
+                LEFT JOIN "JMdict_ReadingWriting" AS rw
+                    ON rs.entry_id = rw.entry_id
+                    AND rs.reading_literal = rw.reading_literal
             WHERE
                 rs.entry_id > {}
                 AND rs.reading_literal ~ '{}'
@@ -363,9 +366,9 @@ class Shiritori(commands.Cog):
             raise asyncio.CancelledError
 
         async with ctx.typing():
-            answer = await self.get_next_word(last_syllable, other_syllable, used_words)
+            reading, writing = await self.get_next_word(last_syllable, other_syllable, used_words)
 
-        if answer is None:
+        if reading is None:
             await ctx.send(
                 f"{botto.aBLOBSHAKE} {ctx.author} I'm lost for words..."
                 f" Score: {score}\n\nYou exhausted my vocabulary! "
@@ -373,8 +376,8 @@ class Shiritori(commands.Cog):
             )
             raise asyncio.CancelledError
 
-        await ctx.send(f"{botto.BLOBFISTBUMP} {answer}")
-        used_words.append(answer)
+        await ctx.send(f"{botto.BLOBFISTBUMP} {reading}" + (f" {writing}" if writing else ""))
+        used_words.append(reading)
         return used_words
 
     @shiritori.command(name="check", aliases=["かくにん", "確認"])
