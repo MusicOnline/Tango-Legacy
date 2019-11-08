@@ -111,6 +111,7 @@ class Shiritori(commands.Cog):
                     WHERE
                         rs.reading_literal = '{}'
                         AND 'noun (common) (futsuumeishi)' = ANY(s.parts_of_speech)
+                    LIMIT 1
                 );
                 """.format(
                     word
@@ -148,7 +149,8 @@ class Shiritori(commands.Cog):
                 rs.entry_id > {}
                 AND rs.reading_literal ~ '{}'
                 AND NOT rs.reading_literal = ANY(ARRAY[{}]::text[])
-                AND 'noun (common) (futsuumeishi)' = ANY(s.parts_of_speech);
+                AND 'noun (common) (futsuumeishi)' = ANY(s.parts_of_speech)
+            LIMIT 1;
             """.format(
                 random.randint(1000000, 2000000),
                 regex_strategy,
