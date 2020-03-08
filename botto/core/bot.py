@@ -2,15 +2,19 @@ import asyncio
 import datetime
 import itertools
 import logging
+import signal
 from typing import Any, Generator, List, Optional
 
-import aiohttp  # type: ignore
-import psutil  # type: ignore
-from gino import Gino  # type: ignore
+import aiohttp
+import asyncpg
+import jinja2
+import psutil
+from gino import Gino
 
-import discord  # type: ignore
-from discord.ext import commands  # type: ignore
-from discord.ext import tasks  # type: ignore
+import discord
+from discord.client import _cleanup_loop
+from discord.ext import commands
+from discord.ext import tasks
 
 import botto
 from .context import Context
@@ -21,7 +25,14 @@ try:
 except ImportError:
     import json  # type: ignore
 
-logger = logging.getLogger(__name__)
+try:
+    import uvloop
+except ImportError:
+    pass
+else:
+    asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
+
+logger = logging.getLogger("botto")
 
 
 class Botto(commands.AutoShardedBot):
@@ -30,9 +41,9 @@ class Botto(commands.AutoShardedBot):
 
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(
-            command_prefix=commands.when_mentioned_or(*botto.config.PREFIXES),
+            command_prefix=commands.when_mentioned_or(*botto.config["PREFIXES"]),
             pm_help=False,
-            owner_id=botto.config.OWNER_ID,
+            owner_id=botto.config["OWNER_ID"],
             **kwargs,
         )
         self.ready_time: Optional[datetime.datetime] = None
@@ -45,7 +56,7 @@ class Botto(commands.AutoShardedBot):
 
         self.add_check(self._check_fundamental_permissions)
         self.after_invoke(self.unlock_after_invoke)
-        self.maintain_presence.start()
+        self.maintain_presence.start()  # pylint: disable=no-member
 
     # ------ Properties ------
 
@@ -76,17 +87,19 @@ class Botto(commands.AutoShardedBot):
         return fmt.format(d=days, h=hours, m=minutes, s=seconds)
 
     def get_owner(self) -> discord.User:
-        if not botto.config.OWNER_ID:
+        if not botto.config["OWNER_ID"]:
             raise ValueError("OWNER_ID not set in config file.")
-        owner: Optional[discord.User] = self.get_user(botto.config.OWNER_ID)
+        owner_id = botto.config["OWNER_ID"]
+        owner: Optional[discord.User] = self.get_user(owner_id)
         if owner is None:
             raise ValueError("Could not find owner in user cache.")
         return owner
 
     def get_console_channel(self) -> botto.utils.AnyChannel:
-        if not botto.config.CONSOLE_CHANNEL_ID:
+        if not botto.config["CONSOLE_CHANNEL_ID"]:
             raise ValueError("CONSOLE_CHANNEL_ID not set in config file.")
-        channel: botto.utils.OptionalChannel = self.get_channel(botto.config.CONSOLE_CHANNEL_ID)
+        channel_id = botto.config["CONSOLE_CHANNEL_ID"]
+        channel: botto.utils.OptionalChannel = self.get_channel(channel_id)
         if channel is None:
             raise ValueError("Could not find console channel in channel cache.")
         return channel
@@ -99,18 +112,74 @@ class Botto(commands.AutoShardedBot):
 
     # ------ Basic methods ------
 
-    async def close(self) -> None:
-        self.maintain_presence.cancel()
+    async def connect_to_database(self, dsn: str) -> None:
+        self.pool: asyncpg.Pool = await asyncpg.create_pool(dsn)
+        if not hasattr(self, "jinja_env"):
+            self.jinja_env = jinja2.Environment(
+                loader=jinja2.FileSystemLoader("botto/sql"), line_statement_prefix="-- :"
+            )
+
+    def get_queries(self, template_name: str) -> Any:
+        return self.jinja_env.get_template(template_name).module
+
+    def run(self) -> None:
+        loop = self.loop
+
+        # Additional startup behaviour
+        dsn = botto.config["DATABASE_URI"]
+        if dsn:
+            loop.run_until_complete(self.connect_to_database(dsn))
+
+        for module in botto.config["STARTUP_MODULES"]:
+            self.load_extension(module)
+
+        # Default behaviour but calls self.shutdown instead of self.close
+        try:
+            loop.add_signal_handler(signal.SIGINT, lambda: loop.stop())
+            loop.add_signal_handler(signal.SIGTERM, lambda: loop.stop())
+        except NotImplementedError:
+            pass
+
+        async def runner() -> None:
+            try:
+                await self.start(botto.config["TOKEN"])
+            finally:
+                await self.shutdown()
+
+        def stop_loop_on_completion(f: asyncio.Future) -> None:
+            loop.stop()
+
+        future = asyncio.ensure_future(runner(), loop=loop)
+        future.add_done_callback(stop_loop_on_completion)
+        try:
+            loop.run_forever()
+        except KeyboardInterrupt:
+            logger.info("Received signal to terminate bot and event loop.")
+        finally:
+            future.remove_done_callback(stop_loop_on_completion)
+            logger.info("Cleaning up tasks.")
+            _cleanup_loop(loop)
+
+        if not future.cancelled():
+            return future.result()
+
+    async def shutdown(self) -> None:
+        self.maintain_presence.cancel()  # pylint: disable=no-member
 
         for ext in tuple(self.extensions):
             self.unload_extension(ext)
 
         await self.db.pop_bind().close()
-        logger.info("Gracefully closed database connection.")
-        await self.session.close()
-        logger.info("Gracefully closed asynchronous HTTP client session.")
-        logger.info("Closing client gracefully...")
-        await super().close()
+        logger.info("Gracefully closed Gino database connection.")
+        if not self.session.closed:
+            await self.session.close()
+            logger.info("Gracefully closed asynchronous HTTP client session.")
+        if hasattr(self, "pool") and not self.pool._closed:
+            await self.pool.close()
+            logger.info("Gracefully closed asynchronous database connection pool.")
+        if not self.is_closed():
+            logger.info("Closing client gracefully...")
+            await self.close()
 
     async def process_commands(self, message: discord.Message) -> None:
         if message.author.bot:
@@ -178,13 +247,21 @@ class Botto(commands.AutoShardedBot):
         except KeyError:
             embed = None
             logger.warning("Meta cog was not found, statistics embed will not be sent.")
+        except psutil.AccessDenied:
+            embed = None
+            logger.exception("psutil lacks permissions to check system information.")
         await self.send_console("Bot has connected.", embed=embed)
+
+    async def on_error(self, event_method: str, *args: Any, **kwargs: Any) -> None:
+        logger.exception("Unhandled exception in '%s' event handler.", event_method)
 
     # ------ Other ------
 
     @tasks.loop(minutes=5)
     async def maintain_presence(self):
-        if self.guilds and self.guilds[0].me.activity is None:
+        while not self.guilds:
+            await asyncio.sleep(1)
+        if self.guilds[0].me.activity is None:
             await self.change_presence(
                 activity=discord.Activity(
                     name=f"@{self.user.name}", type=discord.ActivityType.listening

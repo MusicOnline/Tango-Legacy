@@ -170,7 +170,7 @@ class Shiritori(commands.Cog):
             await ctx.send("I can be benevolent, but isn't over 60 seconds too much?")
             return
 
-        embed: discord.Embed = discord.Embed(colour=botto.config.MAIN_COLOUR)
+        embed: discord.Embed = discord.Embed(colour=botto.config["MAIN_COLOUR"])
         embed.set_author(name="A game of Shiritori is starting!")
         embed.set_thumbnail(url=ctx.author.avatar_url)
         embed.description = (
@@ -196,7 +196,7 @@ class Shiritori(commands.Cog):
 
     @shiritori.help_embed
     async def shiritori_help_embed(self, help_command) -> discord.Embed:
-        embed: discord.Embed = discord.Embed(colour=botto.config.MAIN_COLOUR)
+        embed: discord.Embed = discord.Embed(colour=botto.config["MAIN_COLOUR"])
         embed.set_author(name=self.shiritori.name + " " + self.shiritori.signature)
         embed.description = (
             f"{self.shiritori.short_doc}\n\n"  # pylint: disable=no-member
@@ -448,7 +448,7 @@ class Shiritori(commands.Cog):
 
     @shiritori_check.help_embed
     async def shiritori_check_help_embed(self, help_command) -> discord.Embed:
-        embed: discord.Embed = discord.Embed(colour=botto.config.MAIN_COLOUR)
+        embed: discord.Embed = discord.Embed(colour=botto.config["MAIN_COLOUR"])
         embed.set_author(name=self.shiritori_check.name + " " + self.shiritori_check.signature)
         embed.description = (
             f"{self.shiritori_check.short_doc}\n\n"  # pylint: disable=no-member

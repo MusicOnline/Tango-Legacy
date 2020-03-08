@@ -1,5 +1,7 @@
+asyncpg
 discord.py
 gino
+jinja2
 jishaku
 kanaconv
 lxml
@@ -7,3 +9,4 @@ pillow
 psutil
 pyyaml
 svg.path
+uvloop; sys_platform != "win32" and implementation_name == "cpython"

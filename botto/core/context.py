@@ -1,9 +1,9 @@
 import functools
 from typing import Any, Callable, Coroutine, Dict, Optional, Tuple, Union
 
-import aiohttp  # type: ignore
+import aiohttp
 
-from discord.ext import commands  # type: ignore
+from discord.ext import commands
 
 import botto
 
@@ -57,11 +57,13 @@ class Context(commands.Context):
         public: bool = False,
     ) -> str:
         """Create a GitHub gist and return the url."""
-        if not botto.config.GITHUB_TOKEN:
+        if not botto.config["GITHUB_TOKEN"]:
             raise ValueError("GITHUB_TOKEN not set in config file.")
+
+        github_token = botto.config["GITHUB_TOKEN"]
         url: str = "https://api.github.com/gists"
         headers: Dict[str, str]
-        headers = {"Authorization": f"token {botto.config.GITHUB_TOKEN}"}
+        headers = {"Authorization": f"token {github_token}"}
         _files: Dict[str, Dict[str, str]]
         _files = {file[0]: {"content": file[1]} for file in files}
 

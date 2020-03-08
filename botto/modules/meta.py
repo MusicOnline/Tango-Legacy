@@ -1,8 +1,8 @@
 import platform
 import datetime
 
-import discord  # type: ignore
-from discord.ext import commands  # type: ignore
+import discord
+from discord.ext import commands
 
 import botto
 
@@ -44,8 +44,7 @@ class Meta(commands.Cog):
             ram_usage: float = self.bot.process.memory_full_info().uss / 2 ** 20
 
         embed: discord.Embed = discord.Embed(
-            colour=botto.config.MAIN_COLOUR,
-            timestamp=datetime.datetime.utcnow()
+            colour=botto.config["MAIN_COLOUR"], timestamp=datetime.datetime.utcnow()
         )
         embed.add_field(
             name="Member Stats",
@@ -104,20 +103,23 @@ class Meta(commands.Cog):
         """Show invite link of the bot."""
         await ctx.send(f"<{discord.utils.oauth_url(ctx.me.id)}>")
 
-    @botto.command()
+    @botto.command(enabled=bool(botto.config["SOURCE_CODE_URL"]))
     async def source(self, ctx: botto.Context) -> None:
         """Show GitHub link to source code."""
-        await ctx.send("https://github.com/MusicOnline/Tango")
+        await ctx.send(botto.config["SOURCE_CODE_URL"])
 
-    @botto.command(aliases=["suggest", "feedback", "report", "contact"])
+    @botto.command(
+        aliases=["suggest", "feedback", "report", "contact"],
+        enabled=bool(botto.config["SUPPORT_SERVER_INVITE_URL"]),
+    )
     async def support(self, ctx: botto.Context) -> None:
         """Show support server link."""
-        await ctx.send("Contact Music#9755 here: https://discord.gg/wp7Wxzs")
+        await ctx.send(botto.config["SUPPORT_SERVER_INVITE_URL"])
 
-    @botto.command()
+    @botto.command(enabled=bool(botto.config["VOTE_URL"]))
     async def vote(self, ctx: botto.Context) -> None:
         """Support the bot by voting!"""
-        await ctx.send("https://discordbots.org/bot/542015505146445834")
+        await ctx.send(botto.config["VOTE_URL"])
 
 
 def setup(bot: botto.Botto) -> None:

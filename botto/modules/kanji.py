@@ -82,7 +82,7 @@ class KanjiSearch(commands.Cog):
             KanjiMeaningsReadings.character == kanji
         ).gino.all()
 
-        embed: discord.Embed = discord.Embed(colour=botto.config.MAIN_COLOUR)
+        embed: discord.Embed = discord.Embed(colour=botto.config["MAIN_COLOUR"])
 
         embed.set_author(name=f"Kanji Lookup - {_kanji}")
 
@@ -135,7 +135,7 @@ class KanjiSearch(commands.Cog):
 
     @kanji_search.help_embed
     async def kanji_help_embed(self, help_command) -> discord.Embed:
-        embed: discord.Embed = discord.Embed(colour=botto.config.MAIN_COLOUR)
+        embed: discord.Embed = discord.Embed(colour=botto.config["MAIN_COLOUR"])
         embed.set_author(name=self.kanji_search.name + " " + self.kanji_search.signature)
         embed.description = (
             f"{self.kanji_search.short_doc}\n\n"  # pylint: disable=no-member
@@ -186,7 +186,7 @@ class KanjiSearch(commands.Cog):
 
     @strokeorder.help_embed
     async def strokeorder_help_embed(self, help_command) -> discord.Embed:
-        embed: discord.Embed = discord.Embed(colour=botto.config.MAIN_COLOUR)
+        embed: discord.Embed = discord.Embed(colour=botto.config["MAIN_COLOUR"])
         embed.set_author(name=self.strokeorder.name + " " + self.strokeorder.signature)
         embed.description = (
             f"{self.strokeorder.short_doc}\n\n"  # pylint: disable=no-member

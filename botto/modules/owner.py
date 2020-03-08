@@ -13,18 +13,18 @@ from contextlib import redirect_stdout
 from subprocess import Popen, PIPE
 from typing import Any, Dict, List, Match, Optional, Tuple
 
-import aiohttp  # type: ignore
-import import_expression  # type: ignore
+import aiohttp
+import import_expression
 
-import discord  # type: ignore
-from discord.ext import commands  # type: ignore
+import discord
+from discord.ext import commands
 
 import botto
 
-logger = logging.getLogger(__name__)
+actions_logger = logging.getLogger("botto.actions")
 
 
-class Owner(commands.Cog, command_attrs=dict(hidden=True)):
+class Owner(commands.Cog, command_attrs=dict(hidden=True)):  # type: ignore
     """Developer and owner-only commands."""
 
     def __init__(self, bot: botto.Botto) -> None:
@@ -69,24 +69,31 @@ class Owner(commands.Cog, command_attrs=dict(hidden=True)):
             return
 
         match: Optional[Match] = re.search(
-            r"\(https://gist\.github\.com/(.+)\)", message.embeds[0].description
+            r"\(https://gist\.github\.com/(.+)\)", message.embeds[0].description or ""
         )
         if match is None:
             return
-        if not botto.config.GITHUB_TOKEN:
-            raise ValueError("GITHUB_TOKEN not set in config file.")
 
         gist_id: str = match.group(1)
+
+        if not botto.config["GITHUB_TOKEN"]:
+            actions_logger.error(
+                "Failed to delete gist %s in message ID: %s, GITHUB_TOKEN not set in "
+                "config file.",
+                gist_id,
+                message.id,
+            )
+            return
+
+        github_token = botto.config["GITHUB_TOKEN"]
         url: str = f"https://api.github.com/gists/{gist_id}"
-        headers: Dict[str, str] = {
-            "Authorization": f"token {botto.config.GITHUB_TOKEN}"
-        }
+        headers: Dict[str, str] = {"Authorization": f"token {github_token}"}
 
         try:
             await self.bot.session.delete(url, headers=headers)
-        except aiohttp.ClientResponseError as exc:  # type: ignore
-            logger.error(
-                "Failed to delete gist %s in message ID: " "%s, server returned %s %s.",
+        except aiohttp.ClientResponseError as exc:
+            actions_logger.error(
+                "Failed to delete gist %s in message ID: %s, server returned %s %s.",
                 gist_id,
                 message.id,
                 exc.code,
@@ -94,7 +101,7 @@ class Owner(commands.Cog, command_attrs=dict(hidden=True)):
             )
             return
 
-        logger.info("Deleted gist %s in message ID: %s.", gist_id, message.id)
+        actions_logger.info("Deleted gist %s in message ID: %s.", gist_id, message.id)
 
         embed: discord.Embed = message.embeds[0]
         embed.description = "The gist containing the results was deleted."
@@ -128,7 +135,7 @@ class Owner(commands.Cog, command_attrs=dict(hidden=True)):
     async def shutdown(self, ctx: botto.Context) -> None:
         """Disconnect the bot from Discord and ends its processes."""
         await ctx.send("Shutdown initiated.")
-        await self.bot.close()
+        await self.bot.logout()
 
     @botto.command()
     async def logs(self, ctx: botto.Context) -> None:
@@ -298,7 +305,7 @@ class Owner(commands.Cog, command_attrs=dict(hidden=True)):
         embed: discord.Embed = discord.Embed(
             description=result_string,
             timestamp=timestamp,
-            colour=botto.config.MAIN_COLOUR,
+            colour=botto.config["MAIN_COLOUR"],
         )
         embed.set_author(name="Shell Command Results")
         embed.set_footer(text=f"Took {delta:.2f} ms")
@@ -329,7 +336,7 @@ class Owner(commands.Cog, command_attrs=dict(hidden=True)):
         # Defining the async function.
         try:
             import_expression.exec(to_compile, env)
-        except Exception as exc:  # pylint: disable=broad-except
+        except Exception as exc:
             try:
                 await ctx.message.remove_reaction(botto.aLOADING, ctx.me)
                 await ctx.message.add_reaction(botto.CROSS)
@@ -345,7 +352,7 @@ class Owner(commands.Cog, command_attrs=dict(hidden=True)):
             start: float = time.perf_counter()
             with redirect_stdout(stdout):
                 ret: Any = await func()
-        except Exception as exc:  # pylint: disable=broad-except
+        except Exception as exc:
             try:
                 await ctx.message.remove_reaction(botto.aLOADING, ctx.me)
                 await ctx.message.add_reaction(botto.CROSS)
@@ -373,7 +380,7 @@ class Owner(commands.Cog, command_attrs=dict(hidden=True)):
 
         # If there is stdout and return value
         embed: discord.Embed = discord.Embed(
-            timestamp=ctx.message.created_at, colour=botto.config.MAIN_COLOUR
+            timestamp=ctx.message.created_at, colour=botto.config["MAIN_COLOUR"]
         )
         embed.set_author(name="Code Evaluation")
         embed.set_footer(
@@ -392,23 +399,40 @@ class Owner(commands.Cog, command_attrs=dict(hidden=True)):
         result.append("```")
 
         result_string: str = "\n".join(result)
-        is_uploaded: bool = False
+        uploaded_to: Optional[str] = None
+        file: Optional[discord.File] = None
 
-        if len(result_string) > 2048:
-            url: str = await ctx.gist(
-                *to_upload,
-                description=(
-                    f"Eval command results from {self._get_origin(ctx)} "
-                    f"at {embed.timestamp}."
-                ),
-            )
-            embed.description = f"Results too long. View them [here]({url})."
-            is_uploaded = True
-        else:
+        if len(result_string) <= 2048:
             embed.description = result_string
+        else:
+            try:
+                url: str = await ctx.gist(
+                    *to_upload,
+                    description=(
+                        f"Eval command results from {self._get_origin(ctx)} "
+                        f"at {embed.timestamp}."
+                    ),
+                )
+            except (aiohttp.ClientResponseError, ValueError):
+                try:
+                    url = await ctx.mystbin(
+                        f"Eval command results from {self._get_origin(ctx)} "
+                        f"at {embed.timestamp}.\n\n{result_string[6:-4]}"
+                    )
+                except aiohttp.ClientResponseError:
+                    # If 8MB is insufficient, give up
+                    file = discord.File(io.StringIO(result_string[6:-4]), "results.txt")
+                    embed.description = "Results too long. View them in the file."
+                else:
+                    uploaded_to = "mystbin"
+            else:
+                uploaded_to = "github"
 
-        message = await ctx.send(embed=embed)
-        if is_uploaded:
+        if uploaded_to:
+            embed.description = f"Results too long. View them [here]({url})."
+
+        message = await ctx.send(embed=embed, file=file)
+        if uploaded_to == "github":
             await message.add_reaction("\N{WASTEBASKET}")
 
 

@@ -5,13 +5,13 @@ import traceback
 from typing import List
 
 import aiohttp
-import discord  # type: ignore
-from discord.ext import commands  # type: ignore
+import discord
+from discord.ext import commands
 
 import botto
 
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("botto.events")
 
 
 class Events(commands.Cog):
@@ -23,11 +23,12 @@ class Events(commands.Cog):
         if message.author.bot or not message.content:
             return
         # Note: Change this if not using commands.when_mentioned_or(*prefixes).
-        if botto.config.PREFIXES:
+        if botto.config["PREFIXES"]:
+            prefixes = botto.config["PREFIXES"]
             content = (
                 f"My commands prefixes are {self.bot.user.mention} and "
-                f"`{botto.config.PREFIXES[0]}`. Commands can be viewed using the "
-                f"`{botto.config.PREFIXES[0]}help` command."
+                f"`{prefixes[0]}`. Commands can be viewed using the "
+                f"`{prefixes[0]}help` command."
             )
         else:
             content = (
@@ -58,7 +59,7 @@ class Events(commands.Cog):
         line = f"Removed from guild named '{guild}' (ID: {guild.id})."
         logger.info(line)
         embed: discord.Embed = discord.Embed(
-            colour=discord.Colour.yellow(),
+            colour=discord.Colour.gold(),
             timestamp=datetime.datetime.utcnow(),
             description=line,
         )
@@ -158,15 +159,14 @@ class Events(commands.Cog):
         if isinstance(error, ignored):
             return
 
-        full_tb: str = "".join(
-            traceback.format_exception(type(error), error, error.__traceback__)
-        )
+        exc_info = (type(error), error, error.__traceback__)
+        full_tb: str = "".join(traceback.format_exception(*exc_info))
         logger.error(
-            "Unhandled exception in '%s' command. (%s: %s)\n%s",
+            "Unhandled exception in '%s' command. (%s: %s)",
             ctx.command,
-            error.__class__.__name__,
+            type(error).__name__,
             error,
-            full_tb,
+            exc_info=exc_info
         )
 
         embed: discord.Embed = discord.Embed(
@@ -191,9 +191,7 @@ class Events(commands.Cog):
             mystbin_url = await ctx.mystbin(full_tb)
         except aiohttp.ClientResponseError:
             mystbin_url = "Failed to create mystbin."
-        partial_tb: str = "".join(
-            traceback.format_exception(type(error), error, error.__traceback__, limit=5)
-        )
+        partial_tb: str = "".join(traceback.format_exception(*exc_info, limit=5))
         embed = discord.Embed(
             colour=discord.Colour.red(),
             description=(

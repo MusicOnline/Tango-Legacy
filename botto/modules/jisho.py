@@ -114,7 +114,7 @@ class Jisho(commands.Cog):
 
     @jisho.help_embed
     async def jisho_help_embed(self, help_command) -> discord.Embed:
-        embed: discord.Embed = discord.Embed(colour=botto.config.MAIN_COLOUR)
+        embed: discord.Embed = discord.Embed(colour=botto.config["MAIN_COLOUR"])
         embed.set_author(name=self.jisho.name + " " + self.jisho.signature)
         embed.description = (
             f"{self.jisho.short_doc}\n\n"  # pylint: disable=no-member

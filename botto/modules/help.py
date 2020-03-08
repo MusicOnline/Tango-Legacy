@@ -1,19 +1,24 @@
 import inspect
 from typing import Any, Dict, List, Optional
 
-import discord  # type: ignore
-from discord.ext import commands  # type: ignore
+import discord
+from discord.ext import commands
 import yaml
 
 import botto
 
-BotMapping = Dict[Optional[commands.Cog], commands.Command]
+BotMapping = Dict[Optional[commands.Cog], List[commands.Command]]
 
 
 class HelpCommand(commands.HelpCommand):
     def __init__(self, **options: Any) -> None:
         self.colour = options.pop("colour", discord.Embed.Empty)
         super().__init__(**options)
+
+    async def filter_commands(self, commands, *, sort=False, key=None):
+        """Filter out disabled commands even if verify_checks is False."""
+        commands = await super().filter_commands(commands, sort=sort, key=key)
+        return [command for command in commands if command.enabled]
 
     async def get_bot_help(self, mapping: BotMapping) -> List[discord.Embed]:
         embeds: List[discord.Embed] = []
@@ -277,7 +282,7 @@ class HelpCommand(commands.HelpCommand):
 def setup(bot: botto.Botto) -> None:
     bot._old_help_command = bot.help_command
     bot.help_command = HelpCommand(
-        colour=botto.config.MAIN_COLOUR,
+        colour=botto.config["MAIN_COLOUR"],
         verify_checks=False,
         command_attrs={"help": "Show help information.", "aliases": ["ヘルプ"]},
     )
