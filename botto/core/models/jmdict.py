@@ -66,7 +66,7 @@ class Gloss(db.Model):  # type: ignore  # <gloss> (within <sense>)
 
     entry_id = db.Column("entry_id", db.Integer)
     sense_index = db.Column("sense_index", db.Integer)
-    text = db.Column(db.String, nullable=False)  # text
+    text = db.Column(db.String)  # text  # null in <ent_seq> 1422200
     lang = db.Column(db.String, nullable=False)  # xml:lang attr (implied: eng)
     gender = db.Column(db.String)  # g_gend attr
     type = db.Column(db.String)  # g_type attr
