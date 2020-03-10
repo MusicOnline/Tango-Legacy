@@ -127,8 +127,10 @@ class Botto(commands.AutoShardedBot):
 
         # Additional startup behaviour
         dsn = botto.config["DATABASE_URI"]
-        if dsn:
-            loop.run_until_complete(self.connect_to_database(dsn))
+        loop.run_until_complete(self.db.set_bind(dsn))
+
+        # if dsn:
+        #     loop.run_until_complete(self.connect_to_database(dsn))
 
         for module in botto.config["STARTUP_MODULES"]:
             self.load_extension(module)
