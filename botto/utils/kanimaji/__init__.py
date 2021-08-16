@@ -351,6 +351,8 @@ def create_gif(filename, output=None):
 
     # run svgexport
     cmdline = f"svgexport {shescape(os.path.basename(svgexport_datafile))}"
+    if os.name != "nt":
+        cmdline = "export OPENSSL_CONF=/etc/ssl/ && " + cmdline
     _run_terminal(cmdline, cwd=dirname)
 
     if DELETE_TEMPORARY_FILES:
